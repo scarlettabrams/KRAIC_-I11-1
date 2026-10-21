@@ -1,0 +1,49 @@
+# FEP 2D frame subtraction (I11 PXRD)
+
+Removes the scattering of the FEP flow tube from each raw 2D detector frame (Pixium, 2881 x 2880), so that the crystal diffraction can be analysed.
+
+One frame in, one corrected frame out:
+
+1. A merged reference (`merged_reference.npz`, mean of 46 or more tube-only frames) is built beforehand in the offline app.
+2. For each new frame, one robust scale factor `s` is fitted (Bragg spots rejected).
+3. `corrected = frame - s * reference`; masked pixels (detector mask and a 2theta ring 5.30 to 6.10 deg) are set to 0; negatives are kept.
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `fep2d_inline.py` | `InlineSubtractor` class, folder watcher, command line |
+| `fep2d_pipeline.py` | Shared settings, mask building, reference checks |
+| `fep2d_v3.py` | Core maths and HDF5 reading and writing |
+| `docs/README_inline.md` | Engineering notes: interface, checks, outputs, speed, limits |
+| `docs/Engineering_Handover_2D_FEP_Subtraction.pptx` | Meeting slides |
+
+## Install
+
+```
+pip install -r requirements.txt
+```
+
+## Use
+
+```python
+import numpy as np, pyFAI
+import fep2d_v3 as fm
+from fep2d_inline import InlineSubtractor
+
+sub = InlineSubtractor(fm.load_reference("merged_reference.npz"),
+                       pyFAI.load("calib.poni"), np.load("mask.npy"))
+res = sub.process(frame_2d, name="pixium_146588")   # never raises
+res.ok, res.flags, res.scale, res.corrected
+```
+
+Folder watcher:
+
+```
+python fep2d_inline.py --ref merged_reference.npz --poni calib.poni --mask mask.npy \
+    --watch E:/run/frames --out E:/out --run Run7
+```
+
+## Status
+
+Tested on recorded I11 frames (AP39, carbamazepine); output matches the offline app pixel for pixel on 4 real frames. About 4.2 s per frame including writing, on 2 CPU cores. Not yet run on a live beamline feed. Peak memory and concurrent use are not yet measured or tested.

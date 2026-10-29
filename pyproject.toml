@@ -14,25 +14,20 @@ classifiers = [
 description = "A repository for useful python data analysis tools for the X-ray powder diffraction beamlines at Diamond Light Source"
 dependencies = [
     "numpy>=1.24",
+    "opencv-python>=4.8",
+    "helper",
     "h5py",
     "matplotlib",
     "scipy",
     "pyfai",
     "pydantic",
     "numpydantic",
-    "lmfit",
     "pandas",
-    "peakutils",
-    "PyCifRW",
     "pyyaml",
     "toml",
     "stomp.py",
-    "numba",
-    "ipywidgets",
     "click",
-    "python-workflow-submitter",
     "httpx",
-    "opencv-python>=4.8",
 
 ] # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
@@ -151,6 +146,9 @@ lint.select = [
     "I",   # isort - https://docs.astral.sh/ruff/rules/#isort-i
     "UP",  # pyupgrade - https://docs.astral.sh/ruff/rules/#pyupgrade-up
     "SLF", # self - https://docs.astral.sh/ruff/settings/#lintflake8-self
+]
+lint.ignore = [
+    "N999", # invalid-module-name - package name KRAIC_I11_1 is intentionally uppercase
 ]
 
 [tool.ruff.lint.per-file-ignores]

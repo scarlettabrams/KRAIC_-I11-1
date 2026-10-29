@@ -1,21 +1,17 @@
 import os
 import time
 
-import cv2
+import matplotlib.pyplot as plt
 from helper.helper import (
     load_json,
     update_json,
 )
-from individual_equipment_control_menu.equipment.cam_vision import (
+
+from KRAIC_I11_1.camera_triggering_speed_tracking.trigger_imaging.imaging import (
     configure_continuous_acquisition,
     get_camera,
     release_camera,
 )
-
-try:
-    import cv2
-except ImportError:
-    cv2 = None
 
 try:
     import PySpin
@@ -25,10 +21,7 @@ except ImportError:
 _flir_system = None
 _flir_cam_list = None
 
-try:
-    import matplotlib.pyplot as plt
-except ImportError:
-    plt = None
+
 # ======================================================================================
 
 # Important Constants

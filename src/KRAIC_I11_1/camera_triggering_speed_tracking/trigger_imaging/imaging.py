@@ -4,11 +4,6 @@ from datetime import datetime
 
 import cv2
 from communication.software_communication import PyConnection
-from helper.helper import (
-    list_dict,
-    load_json,
-    update_json,
-)
 from individual_equipment_control_menu.equipment.cam_vision import (
     configure_continuous_acquisition,
     get_camera,
@@ -28,6 +23,11 @@ from KRAIC_I11_1.camera_triggering_speed_tracking.trigger_imaging.trigger import
     load_trigger_settings,
     plot_trigger_calibration,
     save_trigger_settings,
+)
+from KRAIC_I11_1.utils.helper import (
+    list_dict,
+    load_json,
+    update_json,
 )
 
 try:

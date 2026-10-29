@@ -2,16 +2,15 @@ import os
 import time
 
 import matplotlib.pyplot as plt
-import PySpin
-from helper.helper import (
-    load_json,
-    update_json,
-)
 
 from KRAIC_I11_1.camera_triggering_speed_tracking.trigger_imaging.imaging import (
     configure_continuous_acquisition,
     get_camera,
     release_camera,
+)
+from KRAIC_I11_1.utils.helper import (
+    load_json,
+    update_json,
 )
 
 _flir_system = None
@@ -46,10 +45,6 @@ def capture_trigger_data(conn_settings):
     Capture ten seconds of intensity measurements from the
     hardcoded software ROI on the full-sized top-camera frames.
     """
-
-    if PySpin is None:
-        print("PySpin could not be imported.")
-        return None, None
 
     system, cam_list, camera = get_camera(
         TOP_CAMERA_DEVICE_TYPE,

@@ -34,6 +34,7 @@ src/KRAIC_I11_1.egg-info/scm_file_list.json
 src/KRAIC_I11_1.egg-info/scm_version.json
 src/KRAIC_I11_1.egg-info/top_level.txt
 src/KRAIC_I11_1/camera_triggering_speed_tracking/__init__.py
+src/KRAIC_I11_1/camera_triggering_speed_tracking/helper.py
 src/KRAIC_I11_1/camera_triggering_speed_tracking/flowspeedmonitor_v2/README.md
 src/KRAIC_I11_1/camera_triggering_speed_tracking/flowspeedmonitor_v2/__init__.py
 src/KRAIC_I11_1/camera_triggering_speed_tracking/flowspeedmonitor_v2/flowspeedmonitor_v2.py

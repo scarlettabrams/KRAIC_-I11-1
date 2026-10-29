@@ -653,15 +653,6 @@ wheels = [
 ]
 
 [[package]]
-name = "helper"
-version = "2.5.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pyyaml" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/0b/c2/b4e0286e492b4551c1890a7445a1b85f3f10032673566d4c20c14dd0a280/helper-2.5.0.tar.gz", hash = "sha256:4af39471d25c8820f505bc5c5b1447878bdbec0781c60d73d9ffbdf5383152b4", size = 18024, upload-time = "2021-02-01T16:58:52.09Z" }
-
-[[package]]
 name = "httpcore"
 version = "1.0.9"
 source = { registry = "https://pypi.org/simple" }
@@ -877,7 +868,6 @@ source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "h5py" },
-    { name = "helper" },
     { name = "httpx" },
     { name = "matplotlib" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
@@ -911,7 +901,6 @@ dev = [
 requires-dist = [
     { name = "click" },
     { name = "h5py" },
-    { name = "helper" },
     { name = "httpx" },
     { name = "matplotlib" },
     { name = "numpy" },

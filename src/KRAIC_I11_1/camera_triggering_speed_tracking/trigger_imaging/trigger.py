@@ -1,14 +1,16 @@
-Oimport os
+import os
 import time
-import json
-import shutil
-import cv2
-import threading
 
-from datetime import datetime
-from communication.software_communication import PyConnection
-from helper.helper import passwd,clear_screen,load_json,dump_json,update_json,list_dict
-from individual_equipment_control_menu.equipment.cam_vision import get_camera,release_camera,configure_continuous_acquisition
+import cv2
+from helper.helper import (
+    load_json,
+    update_json,
+)
+from individual_equipment_control_menu.equipment.cam_vision import (
+    configure_continuous_acquisition,
+    get_camera,
+    release_camera,
+)
 
 try:
     import cv2
@@ -27,11 +29,11 @@ try:
     import matplotlib.pyplot as plt
 except ImportError:
     plt = None
-#=======================================================================================================================================================
+# ======================================================================================
 
 # Important Constants
 
-#=======================================================================================================================================================
+# ======================================================================================
 
 # This must match the top-camera key in connection_settings.json.
 TOP_CAMERA_DEVICE_TYPE = "FLIR_Camera_Top"
@@ -48,7 +50,6 @@ TRIGGER_SAMPLE_SECONDS = 10.0
 # Prevents noise around the threshold from being counted as
 # multiple separate crossings.
 TRIGGER_HYSTERESIS = 5.0
-
 
 
 def capture_trigger_data(conn_settings):
@@ -81,10 +82,7 @@ def capture_trigger_data(conn_settings):
 
         camera.BeginAcquisition()
 
-        print(
-            f"\nCollecting trigger data for "
-            f"{TRIGGER_SAMPLE_SECONDS:.0f} seconds..."
-        )
+        print(f"\nCollecting trigger data for {TRIGGER_SAMPLE_SECONDS:.0f} seconds...")
 
         start_time = time.perf_counter()
 
@@ -99,8 +97,7 @@ def capture_trigger_data(conn_settings):
             try:
                 if image_result.IsIncomplete():
                     print(
-                        "Incomplete image with status "
-                        f"{image_result.GetImageStatus()}"
+                        f"Incomplete image with status {image_result.GetImageStatus()}"
                     )
                     continue
 
@@ -108,13 +105,9 @@ def capture_trigger_data(conn_settings):
 
                 frame_height, frame_width = frame.shape[:2]
 
-                roi_x_end = (
-                    TRIGGER_ROI_X + TRIGGER_ROI_WIDTH
-                )
+                roi_x_end = TRIGGER_ROI_X + TRIGGER_ROI_WIDTH
 
-                roi_y_end = (
-                    TRIGGER_ROI_Y + TRIGGER_ROI_HEIGHT
-                )
+                roi_y_end = TRIGGER_ROI_Y + TRIGGER_ROI_HEIGHT
 
                 if (
                     TRIGGER_ROI_X < 0
@@ -163,10 +156,7 @@ def capture_trigger_data(conn_settings):
             camera,
         )
 
-    print(
-        f"Collected {len(intensities)} "
-        "intensity measurements."
-    )
+    print(f"Collected {len(intensities)} intensity measurements.")
 
     return times, intensities
 
@@ -176,33 +166,40 @@ def load_trigger_settings(img_folder_path, img_settings):
 
     img_json = load_json(img_settings)
 
-    folder_name = os.path.basename(
-        os.path.normpath(img_folder_path)
-    )
+    folder_name = os.path.basename(os.path.normpath(img_folder_path))
 
-    experiment_settings = (
-        img_json
-        .get("IMAGING_SETTINGS", {})
-        .get(folder_name, {})
-    )
+    experiment_settings = img_json.get("IMAGING_SETTINGS", {}).get(folder_name, {})
 
-    threshold = float(
-        experiment_settings.get("trigger_threshold", 1.0)
-    )
+    threshold = float(experiment_settings.get("trigger_threshold", 1.0))
 
-    pair_time = float(
-        experiment_settings.get("pair_time", 1.0)
-    )
+    pair_time = float(experiment_settings.get("pair_time", 1.0))
 
     return threshold, pair_time
 
 
-def plot_trigger_calibration(times,intensities,threshold,pair_time,):
+def plot_trigger_calibration(
+    times,
+    intensities,
+    threshold,
+    pair_time,
+):
     """Plot trigger calibration data using the current settings."""
 
-    crossing_indices = find_threshold_crossings(times=times,intensities=intensities,threshold=threshold,)
+    crossing_indices = find_threshold_crossings(
+        times=times,
+        intensities=intensities,
+        threshold=threshold,
+    )
 
-    valid_trigger_indices = identify_valid_pair_triggers(times=times,crossing_indices=crossing_indices,pair_time=pair_time,)
+    valid_trigger_indices = identify_valid_pair_triggers(
+        times=times,
+        crossing_indices=crossing_indices,
+        pair_time=pair_time,
+    )
+
+    if plt is None:
+        print("Matplotlib could not be imported. Please install matplotlib.")
+        return crossing_indices, valid_trigger_indices
 
     maximum_intensity = max(intensities)
 
@@ -211,18 +208,24 @@ def plot_trigger_calibration(times,intensities,threshold,pair_time,):
 
     plt.figure(figsize=(12, 6))
 
-    plt.plot(times,intensities,label="Mean ROI intensity")
+    plt.plot(times, intensities, label="Mean ROI intensity")
 
-    plt.axhline(y=threshold,linestyle="--",label=f"Threshold: {threshold:.2f}")
+    plt.axhline(y=threshold, linestyle="--", label=f"Threshold: {threshold:.2f}")
 
-    for crossing_number, crossing_index in enumerate(crossing_indices,start=1):
+    for crossing_number, crossing_index in enumerate(crossing_indices, start=1):
         crossing_time = times[crossing_index]
 
-        plt.axvline(x=crossing_time,linestyle=":",color="red",alpha=0.7)
+        plt.axvline(x=crossing_time, linestyle=":", color="red", alpha=0.7)
 
-        plt.text(crossing_time,maximum_intensity * 0.96,str(crossing_number),horizontalalignment="center",verticalalignment="top")
+        plt.text(
+            crossing_time,
+            maximum_intensity * 0.96,
+            str(crossing_number),
+            horizontalalignment="center",
+            verticalalignment="top",
+        )
 
-    for valid_number, trigger_index in enumerate(valid_trigger_indices,start=1):
+    for valid_number, trigger_index in enumerate(valid_trigger_indices, start=1):
         trigger_time = times[trigger_index]
         trigger_intensity = intensities[trigger_index]
 
@@ -231,23 +234,28 @@ def plot_trigger_calibration(times,intensities,threshold,pair_time,):
             trigger_intensity,
             marker="o",
             s=100,
-            label=(
-                "Valid second trough"
-                if valid_number == 1
-                else None
-            ),
+            label=("Valid second trough" if valid_number == 1 else None),
         )
 
-        plt.text(trigger_time,trigger_intensity," Trigger",verticalalignment="bottom")
+        plt.text(
+            trigger_time, trigger_intensity, " Trigger", verticalalignment="bottom"
+        )
 
-    for previous_index, current_index in zip(crossing_indices,crossing_indices[1:]):
+    for previous_index, current_index in zip(
+        crossing_indices, crossing_indices[1:], strict=False
+    ):
         previous_time = times[previous_index]
         current_time = times[current_index]
 
         time_gap = current_time - previous_time
         midpoint = (previous_time + current_time) / 2
 
-        plt.text(midpoint,maximum_intensity * 0.82,f"{time_gap:.3f} s",horizontalalignment="center")
+        plt.text(
+            midpoint,
+            maximum_intensity * 0.82,
+            f"{time_gap:.3f} s",
+            horizontalalignment="center",
+        )
 
     plt.xlabel("Time (seconds)")
     plt.ylabel("Mean ROI intensity")
@@ -258,9 +266,9 @@ def plot_trigger_calibration(times,intensities,threshold,pair_time,):
         f"{len(valid_trigger_indices)} valid trigger(s)"
     )
 
-    plt.xlim(0,max(TRIGGER_SAMPLE_SECONDS, times[-1]))
+    plt.xlim(0, max(TRIGGER_SAMPLE_SECONDS, times[-1]))
 
-    plt.ylim(0,maximum_intensity * 1.02)
+    plt.ylim(0, maximum_intensity * 1.02)
 
     plt.grid(True)
     plt.legend()
@@ -270,8 +278,9 @@ def plot_trigger_calibration(times,intensities,threshold,pair_time,):
     return crossing_indices, valid_trigger_indices
 
 
-
-def find_threshold_crossings(times,intensities,threshold,hysteresis=TRIGGER_HYSTERESIS):
+def find_threshold_crossings(
+    times, intensities, threshold, hysteresis=TRIGGER_HYSTERESIS
+):
     """
     Detect genuine high-to-low threshold crossings.
 
@@ -288,7 +297,6 @@ def find_threshold_crossings(times,intensities,threshold,hysteresis=TRIGGER_HYST
     reset_level = threshold + hysteresis
 
     for index, intensity in enumerate(intensities):
-
         if not armed:
             if intensity >= reset_level:
                 armed = True
@@ -306,7 +314,7 @@ def find_threshold_crossings(times,intensities,threshold,hysteresis=TRIGGER_HYST
     return crossing_indices
 
 
-def identify_valid_pair_triggers(times,crossing_indices,pair_time):
+def identify_valid_pair_triggers(times, crossing_indices, pair_time):
     """
     Identify crossings that are the second trough of a valid pair.
 
@@ -318,7 +326,6 @@ def identify_valid_pair_triggers(times,crossing_indices,pair_time):
     first_crossing_index = None
 
     for crossing_index in crossing_indices:
-
         if first_crossing_index is None:
             first_crossing_index = crossing_index
             continue
@@ -339,15 +346,11 @@ def identify_valid_pair_triggers(times,crossing_indices,pair_time):
     return valid_trigger_indices
 
 
-
-
 def input_trigger_threshold():
     """Ask the user for a new threshold."""
 
     while True:
-        raw_value = input(
-            "Please enter the new trigger threshold: "
-        ).strip()
+        raw_value = input("Please enter the new trigger threshold: ").strip()
 
         try:
             threshold = float(raw_value)
@@ -363,16 +366,11 @@ def input_trigger_threshold():
         return threshold
 
 
-
-
 def input_pair_time():
     """Ask the user for the maximum pair time."""
 
     while True:
-        raw_value = input(
-            "Please enter the maximum pair time "
-            "in seconds: "
-        ).strip()
+        raw_value = input("Please enter the maximum pair time in seconds: ").strip()
 
         try:
             pair_time = float(raw_value)
@@ -388,14 +386,12 @@ def input_pair_time():
         return pair_time
 
 
-def save_trigger_settings(img_folder_path,img_settings,threshold,pair_time):
+def save_trigger_settings(img_folder_path, img_settings, threshold, pair_time):
     """Save the selected threshold and pair time."""
 
     img_json = load_json(img_settings)
 
-    folder_name = os.path.basename(
-        os.path.normpath(img_folder_path)
-    )
+    folder_name = os.path.basename(os.path.normpath(img_folder_path))
 
     if "IMAGING_SETTINGS" not in img_json:
         img_json["IMAGING_SETTINGS"] = {}
@@ -403,17 +399,11 @@ def save_trigger_settings(img_folder_path,img_settings,threshold,pair_time):
     if folder_name not in img_json["IMAGING_SETTINGS"]:
         img_json["IMAGING_SETTINGS"][folder_name] = {}
 
-    experiment_settings = img_json["IMAGING_SETTINGS"][
-        folder_name
-    ]
+    experiment_settings = img_json["IMAGING_SETTINGS"][folder_name]
 
-    experiment_settings["trigger_threshold"] = float(
-        threshold
-    )
+    experiment_settings["trigger_threshold"] = float(threshold)
 
-    experiment_settings["pair_time"] = float(
-        pair_time
-    )
+    experiment_settings["pair_time"] = float(pair_time)
 
     update_json(img_settings, img_json)
 

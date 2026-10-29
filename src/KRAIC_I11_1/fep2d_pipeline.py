@@ -23,17 +23,17 @@ Settings locked on 07/10/26 (see the master notes, "Locked defaults"):
 
 Requires: numpy, h5py, pyFAI, pybaselines (and fep2d_v3.py beside this file).
 """
+
 from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional, Sequence
-
-import numpy as np
 
 import fep2d_v3 as fm
+import numpy as np
 
 PIPELINE_VERSION = "fep2d_pipeline v4.0 (V2 maths via fep2d_v3 unchanged)"
 
@@ -45,26 +45,35 @@ DEFAULT_EXTRA_MASK = [(5.30, 6.10)]
 # ----------------------------------------------------------------------------
 @dataclass
 class Settings:
-    extra_mask: list = field(default_factory=lambda: [tuple(r) for r in DEFAULT_EXTRA_MASK])
+    extra_mask: list = field(
+        default_factory=lambda: [tuple(r) for r in DEFAULT_EXTRA_MASK]
+    )
     npt: int = 2000
     rmin: float = 1.0
     rmax: float = 30.0
     half_window: int = 4
-    zero_masked: bool = True            # set the masked window to 0 after baselining (see zero_ranges)
-    # fep2d_inline_1d_preview.py only (the 2D inline script always uses the exact whole-detector fit): pixels used for the scale fit = every `fit_stride`-th pixel in both
-    # directions. 1 = exact, identical to the offline path (about 3.4 s/frame on the test machine,
-    # affordable because frames arrive about 27 s apart) and the default.
-    # 2 = a quarter of the pixels (about 0.8 s/frame) but the corrected pattern then differs from the
-    # offline one by up to 0.2 counts next to the FEP line (measured on 7 AP39 R007 frames, 07/10/26),
-    # which is about a tenth of the single-frame noise. Use only if the frame rate demands it.
+    zero_masked: bool = (
+        True  # set the masked window to 0 after baselining (see zero_ranges)
+    )
+    # fep2d_inline_1d_preview.py only (the 2D inline script always uses the exact
+    # whole-detector fit): pixels used for the scale fit = every `fit_stride`-th pixel
+    # in both directions. 1 = exact, identical to the offline path (about 3.4 s/frame
+    # on the test machine, affordable because frames arrive about 27 s apart) and the
+    # default.
+    # 2 = a quarter of the pixels (about 0.8 s/frame) but the corrected pattern then
+    # differs from the offline one by up to 0.2 counts next to the FEP line (measured
+    # on 7 AP39 R007 frames, 07/10/26), which is about a tenth of the single-frame
+    # noise. Use only if the frame rate demands it.
     fit_stride: int = 1
     # inline quality checks
     scale_bounds: tuple = (0.3, 3.0)
-    min_total_frac: float = 0.30        # frame total below this x reference total = dark / shutter
-    min_fit_frac: float = 0.50          # fraction of pixels kept by the robust fit
-    drift_sigma: float = 5.0            # scale this many robust sigma from the running median
-    noise_factor: float = 2.0           # far-angle noise this many times the running median
-    min_history: int = 10               # frames needed before drift / noise flags can fire
+    min_total_frac: float = (
+        0.30  # frame total below this x reference total = dark / shutter
+    )
+    min_fit_frac: float = 0.50  # fraction of pixels kept by the robust fit
+    drift_sigma: float = 5.0  # scale this many robust sigma from the running median
+    noise_factor: float = 2.0  # far-angle noise this many times the running median
+    min_history: int = 10  # frames needed before drift / noise flags can fire
 
     def as_dict(self) -> dict:
         d = asdict(self)
@@ -103,9 +112,15 @@ def fmt_ranges(ranges) -> str:
 
 def total_mask(det_mask, ai, shape, ranges) -> np.ndarray:
     """Detector mask OR the extra 2-theta annulus ranges. True = bad pixel."""
-    total = np.zeros(shape, bool) if det_mask is None else np.asarray(det_mask).astype(bool).copy()
+    total = (
+        np.zeros(shape, bool)
+        if det_mask is None
+        else np.asarray(det_mask).astype(bool).copy()
+    )
     if total.shape != tuple(shape):
-        raise InputError(f"detector mask is {total.shape} but the frame is {tuple(shape)}")
+        raise InputError(
+            f"detector mask is {total.shape} but the frame is {tuple(shape)}"
+        )
     if ranges:
         if ai is None:
             raise InputError("an extra 2-theta mask needs the calibration (.poni)")
@@ -114,30 +129,40 @@ def total_mask(det_mask, ai, shape, ranges) -> np.ndarray:
 
 
 def integrate(frame, ai, mask, npt=2000, rmin=1.0, rmax=30.0):
-    """Azimuthal integration, raw summed counts: no solid-angle correction, no error model."""
+    """Azimuthal integration, raw summed counts: no solid-angle correction, no error
+    model."""
     import pyFAI
     import pyFAI.units
-    res = ai.integrate1d(np.asarray(frame, np.float32), int(npt), unit=pyFAI.units.TTH_DEG,
-                         radial_range=[rmin, rmax], mask=mask, correctSolidAngle=False,
-                         error_model=None)
+
+    res = ai.integrate1d(
+        np.asarray(frame, np.float32),
+        int(npt),
+        unit=pyFAI.units.TTH_DEG,
+        radial_range=[rmin, rmax],
+        mask=mask,
+        correctSolidAngle=False,
+        error_model=None,
+    )
     return np.asarray(res.radial, float), np.asarray(res.intensity, float)
 
 
 def fill_gaps(x, y, ranges):
-    """Straight-line fill across each masked 2-theta range (same logic as the 1D app)."""
+    """Straight-line fill across each masked 2-theta range (same logic as the 1D
+    app)."""
     y = np.asarray(y, float)
-    for lo, hi in (ranges or []):
+    for lo, hi in ranges or []:
         y = fm.interpolate_gap(x, y, lo, hi)
     return y
 
 
 def zero_ranges(x, y, ranges):
-    """Set the masked 2-theta window(s) to exactly 0 (call AFTER baselining). The straight-line bridge
-    is only there so the baseline has something to follow; any small bump left inside the window
-    (about 0.4 counts seen at 6.05-6.10 deg on AP39 frames) is baseline edge noise, not data.
+    """Set the masked 2-theta window(s) to exactly 0 (call AFTER baselining). The
+    straight-line bridge is only there so the baseline has something to follow; any
+    small bump left inside the window (about 0.4 counts seen at 6.05-6.10 deg on AP39
+    frames) is baseline edge noise, not data.
     The unbaselined pattern keeps the straight line."""
     y = np.asarray(y, float).copy()
-    for lo, hi in (ranges or []):
+    for lo, hi in ranges or []:
         y[(np.asarray(x) >= lo) & (np.asarray(x) <= hi)] = 0.0
     return y
 
@@ -145,6 +170,7 @@ def zero_ranges(x, y, ranges):
 def baseline_mor(x, y, half_window=4):
     """MOR baseline (pybaselines). Returns (corrected, baseline)."""
     from pybaselines import Baseline
+
     base = Baseline(x_data=x).mor(np.asarray(y, float), half_window=int(half_window))[0]
     return np.asarray(y, float) - base, base
 
@@ -163,8 +189,12 @@ def merge_patterns(xs: Sequence, ys: Sequence):
     if not len(ys):
         raise ValueError("nothing to merge")
     grid = np.asarray(xs[0], float)
-    stack = np.array([np.interp(grid, np.asarray(x, float), np.asarray(y, float))
-                      for x, y in zip(xs, ys)])
+    stack = np.array(
+        [
+            np.interp(grid, np.asarray(x, float), np.asarray(y, float))
+            for x, y in zip(xs, ys, strict=False)
+        ]
+    )
     return grid, stack.mean(axis=0), stack.std(axis=0)
 
 
@@ -180,8 +210,9 @@ def load_xy(path):
 
 
 def fit_scale_fast(f, g, n_iter=6, clip=3.0):
-    """Same robust scale fit as fep2d_v3.fit_scale (no offset), on already-selected pixels.
-    f = frame pixels, g = reference pixels (float64, same order). Returns (scale, fraction kept)."""
+    """Same robust scale fit as fep2d_v3.fit_scale (no offset), on already-selected
+    pixels. f = frame pixels, g = reference pixels (float64, same order).
+    Returns (scale, fraction kept)."""
     use = np.ones(f.size, bool)
     s = 1.0
     for _ in range(n_iter):
@@ -192,7 +223,7 @@ def fit_scale_fast(f, g, n_iter=6, clip=3.0):
     return float(s), float(use.mean())
 
 
-def check_reference(ref: "fm.Reference", min_frames=10, warn_frames=46) -> list:
+def check_reference(ref: fm.Reference, min_frames=10, warn_frames=46) -> list:
     """Checks on a reference. Raises InputError for a reference that cannot be used;
     returns a list of warning strings for one that can but is weak."""
     warns = []
@@ -201,22 +232,32 @@ def check_reference(ref: "fm.Reference", min_frames=10, warn_frames=46) -> list:
     if not np.isfinite(ref.mean).all():
         raise InputError("the reference contains NaN or infinite pixels")
     if float(ref.mean.mean()) <= 0:
-        raise InputError("the reference has a zero or negative mean level (empty or dark frames?)")
+        raise InputError(
+            "the reference has a zero or negative mean level (empty or dark frames?)"
+        )
     srcs = [f"{p}::{i}" for p, i in ref.sources]
     if srcs and len(set(srcs)) != len(srcs):
-        warns.append(f"the reference lists {len(srcs) - len(set(srcs))} duplicated frame(s)")
+        warns.append(
+            f"the reference lists {len(srcs) - len(set(srcs))} duplicated frame(s)"
+        )
     names = [Path(p).stem for p, _ in ref.sources]
-    nums = [re.search(r"(\d+)$", n).group(1) for n in names if re.search(r"(\d+)$", n)]
+    nums = [m.group(1) for n in names if (m := re.search(r"(\d+)$", n))]
     if nums and len(set(nums)) != len(nums):
-        warns.append(f"{len(nums) - len(set(nums))} exposure number(s) appear more than once "
-                     "(an .nxs and its .hdf counted twice?). The true frame count is lower.")
+        warns.append(
+            f"{len(nums) - len(set(nums))} exposure number(s) appear more than once "
+            "(an .nxs and its .hdf counted twice?). The true frame count is lower."
+        )
     n_true = len(set(nums)) if nums else ref.n_used
     if n_true < min_frames:
-        warns.append(f"only {n_true} distinct reference frames; fewer than {min_frames} cannot "
-                     "find even the strong peaks reliably")
+        warns.append(
+            f"only {n_true} distinct reference frames; fewer than {min_frames} cannot "
+            "find even the strong peaks reliably"
+        )
     elif n_true < warn_frames:
-        warns.append(f"{n_true} reference frames: enough for strong peaks, but about "
-                     f"{warn_frames} or more are needed for the weaker ones")
+        warns.append(
+            f"{n_true} reference frames: enough for strong peaks, but about "
+            f"{warn_frames} or more are needed for the weaker ones"
+        )
     return warns
 
 

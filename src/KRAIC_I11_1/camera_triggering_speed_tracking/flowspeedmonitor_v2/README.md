@@ -95,8 +95,8 @@ with fsm.CameraSource(config) as source:
     for packet in source:
         if tracker is None:
             cal = fsm.get_calibration(config, packet.frame)
-            if not cal['reviewed']:
-                raise ValueError('Review camera calibration first.')
+            if not cal["reviewed"]:
+                raise ValueError("Review camera calibration first.")
             tracker = fsm.SlugTracker(config, cal)
         result = tracker.process(packet.frame, packet.timestamp_s, packet.frame_id)
         # Send result to the application's UI; consume new entries in tracker.records.

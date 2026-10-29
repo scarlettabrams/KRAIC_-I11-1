@@ -1,21 +1,19 @@
 import os
+import threading
 import time
-import json
-import shutil
-import threading
-import cv2
-import threading
-
 from datetime import datetime
-from communication.software_communication import PyConnection
-from helper.helper import passwd,clear_screen,load_json,dump_json,update_json,list_dict
-from individual_equipment_control_menu.equipment.cam_vision import get_camera,release_camera,configure_continuous_acquisition
 
-#=======================================================================================================================================================
+import cv2
+from helper.helper import (
+    load_json,
+    update_json,
+)
+
+# ======================================================================================
 
 # Important Constants
 
-#=======================================================================================================================================================
+# ======================================================================================
 
 # This must match the top-camera key in connection_settings.json.
 TOP_CAMERA_DEVICE_TYPE = "FLIR_Camera_Top"
@@ -34,25 +32,36 @@ TRIGGER_SAMPLE_SECONDS = 10.0
 TRIGGER_HYSTERESIS = 5.0
 
 
-
-def calculate_test_video_duration(distance_mm,speed_mm_s,buffer_seconds=0.0,):
+def calculate_test_video_duration(
+    distance_mm,
+    speed_mm_s,
+    buffer_seconds=0.0,
+):
     """Calculate recording duration from stage distance and speed."""
 
     if speed_mm_s <= 0:
         raise ValueError("Stage speed must be greater than zero.")
-        
-    duration = (float(distance_mm)/float(speed_mm_s))+float(buffer_seconds)
-        
-        
+
+    duration = (float(distance_mm) / float(speed_mm_s)) + float(buffer_seconds)
+
     return duration
 
 
-def record_both_cameras(top_camera,plane_camera,img_folder_path,duration_seconds,top_fps,plane_fps,repeats):
-    """Record both cameras for the same requested duration. Returns True when both videos complete without an error."""
+def record_both_cameras(
+    top_camera,
+    plane_camera,
+    img_folder_path,
+    duration_seconds,
+    top_fps,
+    plane_fps,
+    repeats,
+):
+    """Record both cameras for the same requested duration.
 
-    timestamp = datetime.now().strftime(
-        "%Y%m%d_%H%M%S"
-    )
+    Returns True when both videos complete without an error.
+    """
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     top_filename = os.path.join(
         img_folder_path,
@@ -115,10 +124,7 @@ def record_both_cameras(top_camera,plane_camera,img_folder_path,duration_seconds
 
         print("\nBoth video recordings started.")
 
-        while (
-            time.perf_counter() - recording_start
-            < duration_seconds
-        ):
+        while time.perf_counter() - recording_start < duration_seconds:
             time.sleep(0.01)
 
     except threading.BrokenBarrierError:
@@ -145,7 +151,6 @@ def record_both_cameras(top_camera,plane_camera,img_folder_path,duration_seconds
     print(f"Plane video: {plane_filename}")
 
     return True
-
 
 
 def video_camera_worker(
@@ -183,9 +188,7 @@ def video_camera_worker(
         )
 
         if not writer.isOpened():
-            raise RuntimeError(
-                f"Could not open video writer: {filename}"
-            )
+            raise RuntimeError(f"Could not open video writer: {filename}")
 
         # Tell the controller that this camera is ready.
         ready_barrier.wait()
@@ -201,14 +204,10 @@ def video_camera_worker(
             if frame is None:
                 continue
 
-            writer.write(
-                prepare_video_frame(frame)
-            )
+            writer.write(prepare_video_frame(frame))
 
     except Exception as error:
-        errors.append(
-            f"{os.path.basename(filename)}: {error}"
-        )
+        errors.append(f"{os.path.basename(filename)}: {error}")
 
         stop_event.set()
         start_event.set()
@@ -223,7 +222,6 @@ def video_camera_worker(
             writer.release()
 
 
-
 def prepare_video_frame(frame):
     """Convert a camera frame into an OpenCV video frame."""
 
@@ -234,7 +232,6 @@ def prepare_video_frame(frame):
         )
 
     return frame
-
 
 
 def get_camera_frame(camera, timeout_ms=1000):
@@ -254,7 +251,6 @@ def get_camera_frame(camera, timeout_ms=1000):
 
     finally:
         image_result.Release()
-
 
 
 def wait_for_live_trigger(
@@ -299,8 +295,7 @@ def wait_for_live_trigger(
                 or roi_y_end > frame_height
             ):
                 raise ValueError(
-                    "The hardcoded trigger ROI lies outside "
-                    "the top-camera image."
+                    "The hardcoded trigger ROI lies outside the top-camera image."
                 )
 
             roi = frame[
@@ -329,14 +324,10 @@ def wait_for_live_trigger(
                         first_crossing_time = now
 
                     else:
-                        crossing_gap = (
-                            now - first_crossing_time
-                        )
+                        crossing_gap = now - first_crossing_time
 
                         if crossing_gap <= pair_time:
-                            print(
-                                "Valid trigger pair detected."
-                            )
+                            print("Valid trigger pair detected.")
                             return True
 
                         # Previous trough was too far away.
@@ -353,76 +344,78 @@ def wait_for_live_trigger(
             image_result.Release()
 
 
+def repeats(speed, conn_settings, img_settings, img_folder_path):
 
-
-def repeats(speed,conn_settings,img_settings,img_folder_path):
-    
     while True:
-        
         img_json = load_json(img_settings)
 
-        folder_name = os.path.basename(
-            os.path.normpath(img_folder_path)
+        folder_name = os.path.basename(os.path.normpath(img_folder_path))
+
+        run_speed = float(
+            img_json["IMAGING_SETTINGS"][folder_name].get("run_speed", 0.1)
         )
-        
-        run_speed = float(img_json["IMAGING_SETTINGS"][folder_name].get("run_speed",0.1))
-        return_speed = float(img_json["IMAGING_SETTINGS"][folder_name].get("return_speed",1))
-        repeats = img_json["IMAGING_SETTINGS"][folder_name].get("repeats",1)
-        delay = float(img_json["IMAGING_SETTINGS"][folder_name].get("delay",0))
-        
-        run_speed_mm = (run_speed*60)
-        return_speed_mm = (return_speed*60)
-        
-        print(f"\nRun speed: {round(run_speed_mm,2)}mm/s"
-        f"\nReturn speed: {round(return_speed_mm,2)}mm/s"
-        f"\nRepeats: {repeats}"
-        f"\nDelay: {delay}\n")
-        
+        return_speed = float(
+            img_json["IMAGING_SETTINGS"][folder_name].get("return_speed", 1)
+        )
+        repeats = img_json["IMAGING_SETTINGS"][folder_name].get("repeats", 1)
+        delay = float(img_json["IMAGING_SETTINGS"][folder_name].get("delay", 0))
+
+        run_speed_mm = run_speed * 60
+        return_speed_mm = return_speed * 60
+
+        print(
+            f"\nRun speed: {round(run_speed_mm, 2)}mm/s"
+            f"\nReturn speed: {round(return_speed_mm, 2)}mm/s"
+            f"\nRepeats: {repeats}"
+            f"\nDelay: {delay}\n"
+        )
+
         confirm = input("Begin run with previous settings(y/n): ")
-        
-        if confirm not in ("y","n"):
+
+        if confirm not in ("y", "n"):
             print("Invalid response: please select y/n")
             continue
 
         if confirm == "y":
-            return run_speed,return_speed,repeats,delay
-            
+            return run_speed, return_speed, repeats, delay
 
         while True:
             print(f"Current repeats:{repeats}")
-            response1 = input("Would you like to change the current number of repeats(y/n)").strip()
+            response1 = input(
+                "Would you like to change the current number of repeats(y/n)"
+            ).strip()
 
-            if response1 not in ("y","n"):
+            if response1 not in ("y", "n"):
                 print("Invalid response: please select y/n")
                 continue
-            
+
             if response1 == "n":
                 break
-                
+
             repeats_response = input("How many repeats would you like to do? ")
 
             try:
                 repeats_int = int(repeats_response)
-                img_json["IMAGING_SETTINGS"][folder_name]["repeats"]=repeats_int
+                img_json["IMAGING_SETTINGS"][folder_name]["repeats"] = repeats_int
                 break
 
             except ValueError as e:
                 print(f"Error: {e}\n\n Please input an integer")
                 continue
-                
-            
 
         while True:
             print(f"Current run speed:{run_speed_mm}mm/s")
-            run_speed_response = input("Would you like to change the current speed(y/n)")
+            run_speed_response = input(
+                "Would you like to change the current speed(y/n)"
+            )
 
-            if run_speed_response not in ("y","n"):
+            if run_speed_response not in ("y", "n"):
                 print("Invalid response: please select y/n")
                 continue
 
             elif run_speed_response == "n":
                 break
-                
+
             new_speed_mm = input("Please input new speed between 0-20mm/s: ")
 
             try:
@@ -432,30 +425,29 @@ def repeats(speed,conn_settings,img_settings,img_folder_path):
                 print(f"Error: {e}\n\n Please input an number")
                 continue
 
-
-            if speed_float>20 or speed_float<0:
+            if speed_float > 20 or speed_float < 0:
                 print("selected speed is outside of limits, try again")
                 continue
 
-            speed_rev = speed_float/60 
+            speed_rev = speed_float / 60
 
-            img_json["IMAGING_SETTINGS"][folder_name]["run_speed"]=speed_rev
-            
+            img_json["IMAGING_SETTINGS"][folder_name]["run_speed"] = speed_rev
+
             break
-            
-            
-            
+
         while True:
             print(f"Current return speed:{return_speed_mm}mm/s")
-            return_speed_response = input("Would you like to change the current return speed(y/n)")
+            return_speed_response = input(
+                "Would you like to change the current return speed(y/n)"
+            )
 
-            if return_speed_response not in ("y","n"):
+            if return_speed_response not in ("y", "n"):
                 print("Invalid response: please select y/n")
                 continue
 
             elif return_speed_response == "n":
                 break
-                
+
             new_return_mm = input("Please input new speed between 0-80mm/s: ")
 
             try:
@@ -465,28 +457,27 @@ def repeats(speed,conn_settings,img_settings,img_folder_path):
                 print(f"Error: {e}\n\n Please input an number")
                 continue
 
-
-            if return_float>80 or return_float<0:
+            if return_float > 80 or return_float < 0:
                 print("selected speed is outside of limits, try again")
                 continue
 
-            return_rev = return_float/60 
+            return_rev = return_float / 60
 
-            img_json["IMAGING_SETTINGS"][folder_name]["run_speed"]=repeats_rev
-            
+            img_json["IMAGING_SETTINGS"][folder_name]["return_speed"] = return_rev
+
             break
-            
+
         while True:
             print(f"Current delay:{delay}s")
             return_delay = input("Would you like to change the current delay(y/n)")
 
-            if return_delay not in ("y","n"):
+            if return_delay not in ("y", "n"):
                 print("Invalid response: please select y/n")
                 continue
 
             elif return_delay == "n":
                 break
-                
+
             new_return_delay = input("Please input new delay (0-2): ")
 
             try:
@@ -496,27 +487,12 @@ def repeats(speed,conn_settings,img_settings,img_folder_path):
                 print(f"Error: {e}\n\n Please input an number")
                 continue
 
-
-            if delay_float>2 or delay_float<0:
+            if delay_float > 2 or delay_float < 0:
                 print("selected delay is outside of limits, try again")
                 continue
 
+            img_json["IMAGING_SETTINGS"][folder_name]["delay"] = delay_float
 
-            img_json["IMAGING_SETTINGS"][folder_name]["delay"]=delay_float
-            
             break
-            
-        update_json(img_settings,img_json)
 
-            
-
-
-
-
-
-
-
-
-
-
-
+        update_json(img_settings, img_json)

@@ -37,19 +37,20 @@ Typical use
 
 Requires: numpy, h5py. Optional: pyFAI (only for xy output).
 """
+
 from __future__ import annotations
 
 import csv
 import datetime
 import shutil
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Sequence, Union
 
 import h5py
 import numpy as np
 
-PathLike = Union[str, Path]
+PathLike = str | Path
 
 DETECTOR_PATHS = (
     "entry1/pixium_hdf/data",
@@ -69,19 +70,30 @@ def _detector_path(f: h5py.File) -> str:
     for p in DETECTOR_PATHS:
         if p in f:
             return p
-    found = []
-    f.visititems(lambda n, o: found.append(n)
-                 if isinstance(o, h5py.Dataset) and o.ndim >= 2 else None)
+    found: dict[str, int] = {}
+
+    def visit(name, obj):
+        if isinstance(obj, h5py.Dataset) and obj.ndim >= 2:
+            found[name] = int(np.prod(obj.shape[-2:]))
+
+    f.visititems(visit)
     if not found:
         raise RuntimeError("No 2D/3D dataset found")
-    return max(found, key=lambda n: int(np.prod(f[n].shape[-2:])))
+    return max(found, key=found.__getitem__)
+
+
+def _detector_dataset(f: h5py.File) -> h5py.Dataset:
+    ds = f[_detector_path(f)]
+    if not isinstance(ds, h5py.Dataset):
+        raise RuntimeError(f"Detector path is not a dataset: {ds.name}")
+    return ds
 
 
 def iter_frames(paths: Sequence[PathLike]):
     """Yield (path, frame_index, 2D float32 array); handles 2D or 3D datasets."""
     for p in paths:
         with h5py.File(p, "r") as f:
-            ds = f[_detector_path(f)]
+            ds = _detector_dataset(f)
             if ds.ndim == 2:
                 yield str(p), 0, ds[()].astype(np.float32)
             else:
@@ -102,11 +114,11 @@ def find_frames(folder: PathLike, exts=(".nxs",), recursive: bool = False) -> li
 
 def n_frames_in_file(path: PathLike) -> int:
     with h5py.File(path, "r") as f:
-        ds = f[_detector_path(f)]
+        ds = _detector_dataset(f)
         return 1 if ds.ndim == 2 else int(ds.shape[0])
 
 
-def _valid(mask: Optional[np.ndarray], shape) -> np.ndarray:
+def _valid(mask: np.ndarray | None, shape) -> np.ndarray:
     """Boolean array, True = usable pixel. pyFAI convention: mask True = bad."""
     if mask is None:
         return np.ones(shape, bool)
@@ -126,17 +138,18 @@ def _thumb(a: np.ndarray, b: int = 16) -> np.ndarray:
 # ----------------------------------------------------------------------------
 @dataclass
 class Reference:
-    mean: np.ndarray                 # merged background, float32
-    var_of_mean: np.ndarray          # per-pixel variance of the merged mean
+    mean: np.ndarray  # merged background, float32
+    var_of_mean: np.ndarray  # per-pixel variance of the merged mean
     label: str
     n_used: int
     n_rejected: int
     sources: list = field(default_factory=list)
-    rejected: list = field(default_factory=list)   # (file, idx, reason)
+    rejected: list = field(default_factory=list)  # (file, idx, reason)
 
 
-def screen_frames(paths, mask=None, min_total_frac=0.3, z_total=5.0, min_corr=0.97,
-                  progress=None):
+def screen_frames(
+    paths, mask=None, min_total_frac=0.3, z_total=5.0, min_corr=0.97, progress=None
+):
     """
     Pass 1: cheap screen. Returns (keep_list, reject_list).
     Reject if total counts are far below the median (shutter closed), are a
@@ -159,7 +172,7 @@ def screen_frames(paths, mask=None, min_total_frac=0.3, z_total=5.0, min_corr=0.
     med_thumb = (med_thumb - med_thumb.mean()) / (med_thumb.std() + 1e-12)
 
     keep, rej = [], []
-    for (p, i, tot, th) in recs:
+    for p, i, tot, th in recs:
         t = th.ravel()
         corr = float(np.mean(((t - t.mean()) / (t.std() + 1e-12)) * med_thumb))
         if tot < min_total_frac * med:
@@ -173,8 +186,14 @@ def screen_frames(paths, mask=None, min_total_frac=0.3, z_total=5.0, min_corr=0.
     return keep, rej
 
 
-def build_reference(paths: Sequence[PathLike], mask=None, label="reference",
-                    screen=True, progress=None, **screen_kw) -> Reference:
+def build_reference(
+    paths: Sequence[PathLike],
+    mask=None,
+    label="reference",
+    screen=True,
+    progress=None,
+    **screen_kw,
+) -> Reference:
     """Streaming mean + variance (Welford) so 100 frames never sit in RAM.
     progress(stage, done, total) is called after every frame if given."""
     if screen:
@@ -190,7 +209,7 @@ def build_reference(paths: Sequence[PathLike], mask=None, label="reference",
         if (p, i) not in keep_set:
             continue
         fr = fr.astype(np.float64)
-        if mean is None:
+        if mean is None or m2 is None:
             mean, m2 = np.zeros_like(fr), np.zeros_like(fr)
         n += 1
         d = fr - mean
@@ -198,33 +217,59 @@ def build_reference(paths: Sequence[PathLike], mask=None, label="reference",
         m2 += d * (fr - mean)
         if progress:
             progress("merging", n, len(keep_set))
-    var = (m2 / max(n - 1, 1)) / n          # variance of the mean
-    return Reference(mean.astype(np.float32), var.astype(np.float32), label,
-                     n, len(rej), sorted(keep_set), rej)
+    if mean is None or m2 is None:
+        raise RuntimeError("No frames could be read for merging")
+    var = (m2 / max(n - 1, 1)) / n  # variance of the mean
+    return Reference(
+        mean.astype(np.float32),
+        var.astype(np.float32),
+        label,
+        n,
+        len(rej),
+        sorted(keep_set),
+        rej,
+    )
 
 
 def save_reference(ref: Reference, path: PathLike) -> None:
-    np.savez_compressed(path, mean=ref.mean, var_of_mean=ref.var_of_mean,
-                        label=ref.label, n_used=ref.n_used,
-                        n_rejected=ref.n_rejected,
-                        sources=np.array([f"{p}::{i}" for p, i in ref.sources]))
+    np.savez_compressed(
+        path,
+        mean=ref.mean,
+        var_of_mean=ref.var_of_mean,
+        label=ref.label,
+        n_used=ref.n_used,
+        n_rejected=ref.n_rejected,
+        sources=np.array([f"{p}::{i}" for p, i in ref.sources]),
+    )
 
 
 def load_reference(path: PathLike) -> Reference:
     z = np.load(path, allow_pickle=False)
     srcs = [tuple(s.rsplit("::", 1)) for s in z["sources"]]
-    return Reference(z["mean"], z["var_of_mean"], str(z["label"]),
-                     int(z["n_used"]), int(z["n_rejected"]),
-                     [(a, int(b)) for a, b in srcs])
+    return Reference(
+        z["mean"],
+        z["var_of_mean"],
+        str(z["label"]),
+        int(z["n_used"]),
+        int(z["n_rejected"]),
+        [(a, int(b)) for a, b in srcs],
+    )
 
 
 # ----------------------------------------------------------------------------
 # Scale + subtraction
 # ----------------------------------------------------------------------------
-def fit_scale(frame, ref_mean, mask=None, n_iter=6, clip=3.0,
-              r_range: Optional[tuple] = None, fit_offset=False,
-              centre: Optional[tuple] = None,
-              fit_region: Optional[np.ndarray] = None):
+def fit_scale(
+    frame,
+    ref_mean,
+    mask=None,
+    n_iter=6,
+    clip=3.0,
+    r_range: tuple | None = None,
+    fit_offset=False,
+    centre: tuple | None = None,
+    fit_region: np.ndarray | None = None,
+):
     """
     Robust least-squares scale s (and optional offset) so frame ~ s*ref + c.
     Iteratively rejects pixels with large POSITIVE residuals (Bragg spots)
@@ -240,9 +285,12 @@ def fit_scale(frame, ref_mean, mask=None, n_iter=6, clip=3.0,
     if fit_region is not None:
         v &= fit_region.astype(bool)
     if r_range is not None:
-        cy, cx = centre if centre is not None else \
-            (frame.shape[0] / 2.0, frame.shape[1] / 2.0)
-        y, x = np.ogrid[:frame.shape[0], :frame.shape[1]]
+        cy, cx = (
+            centre
+            if centre is not None
+            else (frame.shape[0] / 2.0, frame.shape[1] / 2.0)
+        )
+        y, x = np.ogrid[: frame.shape[0], : frame.shape[1]]
         r = np.hypot(x - cx, y - cy)
         v &= (r >= r_range[0]) & (r <= r_range[1])
     f = frame[v].astype(np.float64)
@@ -251,8 +299,8 @@ def fit_scale(frame, ref_mean, mask=None, n_iter=6, clip=3.0,
     s, c = 1.0, 0.0
     for _ in range(n_iter):
         if fit_offset:
-            A = np.column_stack([g[use], np.ones(use.sum())])
-            (s, c), *_ = np.linalg.lstsq(A, f[use], rcond=None)
+            design = np.column_stack([g[use], np.ones(use.sum())])
+            (s, c), *_ = np.linalg.lstsq(design, f[use], rcond=None)
         else:
             s = float((f[use] * g[use]).sum() / ((g[use] ** 2).sum() + 1e-12))
         res = f - (s * g + c)
@@ -267,10 +315,19 @@ def beam_centre_px(ai) -> tuple:
     return float(f2d["centerY"]), float(f2d["centerX"])
 
 
-def subtract_frame(frame, ref: Reference, mask=None, scale: Optional[float] = None,
-                   clip_negative=False, **fit_kw):
-    s, c, frac_used = (scale, 0.0, 1.0) if scale is not None else \
-        fit_scale(frame, ref.mean, mask, **fit_kw)
+def subtract_frame(
+    frame,
+    ref: Reference,
+    mask=None,
+    scale: float | None = None,
+    clip_negative=False,
+    **fit_kw,
+):
+    s, c, frac_used = (
+        (scale, 0.0, 1.0)
+        if scale is not None
+        else fit_scale(frame, ref.mean, mask, **fit_kw)
+    )
     out = frame - (s * ref.mean + c)
     if mask is not None:
         out = np.where(mask.astype(bool), 0.0, out)
@@ -278,8 +335,13 @@ def subtract_frame(frame, ref: Reference, mask=None, scale: Optional[float] = No
     neg_frac = float((out[v] < 0).mean())
     if clip_negative:
         out = np.clip(out, 0.0, None)
-    info = dict(scale=s, offset=c, fit_pixel_frac=frac_used,
-                neg_frac=neg_frac, corrected_sum=float(out[v].sum()))
+    info = {
+        "scale": s,
+        "offset": c,
+        "fit_pixel_frac": frac_used,
+        "neg_frac": neg_frac,
+        "corrected_sum": float(out[v].sum()),
+    }
     return out.astype(np.float32), info
 
 
@@ -294,9 +356,9 @@ def tth_annulus_mask(ai, shape, ranges_deg) -> np.ndarray:
     Masked pixels are excluded from the scale fit, zeroed in the corrected
     frame and ignored on integration.
     """
-    try:                                    # newer pyFAI
+    try:  # newer pyFAI
         tth = np.degrees(ai.center_array(shape, unit="2th_rad"))
-    except (AttributeError, TypeError, ValueError):   # older pyFAI
+    except (AttributeError, TypeError, ValueError):  # older pyFAI
         tth = np.degrees(ai.twoThetaArray(shape))
     m = np.zeros(shape, bool)
     for lo, hi in ranges_deg:
@@ -328,8 +390,8 @@ def interpolate_gap(x, y, lo, hi):
 
 @dataclass
 class RingMap:
-    order: np.ndarray        # flat indices of valid pixels, sorted by radial (2theta) bin
-    bounds: np.ndarray       # start offset of each bin inside `order` (len nbins+1)
+    order: np.ndarray  # flat indices of valid pixels, sorted by radial (2theta) bin
+    bounds: np.ndarray  # start offset of each bin inside `order` (len nbins+1)
     shape: tuple
 
 
@@ -346,7 +408,9 @@ def build_ring_map(ai, shape, mask=None, nbins=1500) -> RingMap:
     lab = np.clip(np.digitize(t, edges) - 1, 0, nbins - 1)
     srt = np.argsort(lab, kind="stable")
     counts = np.bincount(lab, minlength=nbins)
-    return RingMap(flat_valid[srt], np.concatenate([[0], np.cumsum(counts)]), tuple(shape))
+    return RingMap(
+        flat_valid[srt], np.concatenate([[0], np.cumsum(counts)]), tuple(shape)
+    )
 
 
 def ring_median_subtract(frame, rm: RingMap) -> np.ndarray:
@@ -377,17 +441,23 @@ def leave_one_out_reference(ref: Reference, frame: np.ndarray) -> Reference:
     if n < 3:
         raise ValueError("Need at least 3 frames in the reference")
     mean = (n * ref.mean.astype(np.float64) - frame.astype(np.float64)) / (n - 1)
-    return Reference(mean.astype(np.float32),
-                     (ref.var_of_mean * (n / (n - 1))).astype(np.float32),
-                     ref.label + " (leave-one-out)", n - 1, ref.n_rejected,
-                     list(ref.sources), list(ref.rejected))
+    return Reference(
+        mean.astype(np.float32),
+        (ref.var_of_mean * (n / (n - 1))).astype(np.float32),
+        ref.label + " (leave-one-out)",
+        n - 1,
+        ref.n_rejected,
+        list(ref.sources),
+        list(ref.rejected),
+    )
 
 
 # ----------------------------------------------------------------------------
 # Output
 # ----------------------------------------------------------------------------
-def write_corrected_nxs(src: PathLike, dst: PathLike, corrected, frame_index,
-                        ref: Reference, info: dict) -> None:
+def write_corrected_nxs(
+    src: PathLike, dst: PathLike, corrected, frame_index, ref: Reference, info: dict
+) -> None:
     """
     Copy the source file, swap in the corrected 2D frame (single frame).
     I11 .nxs files hold an EXTERNAL LINK to the matching pixium_<n>.hdf. The
@@ -402,45 +472,76 @@ def write_corrected_nxs(src: PathLike, dst: PathLike, corrected, frame_index,
     shutil.copy2(src, dst)
     with h5py.File(dst, "r+") as f:
         try:
-            del f[p]                  # unlink only; never opens the (now dangling) target
+            del f[p]  # unlink only; never opens the (now dangling) target
         except KeyError:
             pass
-        ds = f.create_dataset(p, data=corrected[None, ...] if corrected.ndim == 2
-                              else corrected, compression="gzip", compression_opts=1,
-                              shuffle=True)
+        ds = f.create_dataset(
+            p,
+            data=corrected[None, ...] if corrected.ndim == 2 else corrected,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
         for k, v in attrs.items():
             ds.attrs[k] = v
         ds.attrs.update(
             processing="fep2d_v2 pixel-wise reference subtraction",
-            reference_label=ref.label, reference_n_frames=ref.n_used,
-            scale_factor=info["scale"], offset=info["offset"],
+            reference_label=ref.label,
+            reference_n_frames=ref.n_used,
+            scale_factor=info["scale"],
+            offset=info["offset"],
             source_frame_index=frame_index,
-            timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            timestamp=datetime.datetime.now(datetime.UTC).isoformat(),
         )
 
 
-def integrate_to_xy(corrected, ai, mask, out_path, npt=2000, rmin=1.0, rmax=30.0,
-                    interp_ranges=None):
+def integrate_to_xy(
+    corrected, ai, mask, out_path, npt=2000, rmin=1.0, rmax=30.0, interp_ranges=None
+):
     """Same settings as the Streamlit app (no solid-angle correction).
     interp_ranges=[(lo, hi), ...] fills those 2theta ranges by straight line
     (use the same ranges as any annulus mask, e.g. [(5.40, 6.00)])."""
-    import pyFAI
-    res = ai.integrate1d(corrected.astype(np.float32), npt,
-                         unit=pyFAI.units.TTH_DEG, radial_range=[rmin, rmax],
-                         mask=mask, correctSolidAngle=False, error_model=None)
+    import pyFAI.units
+
+    res = ai.integrate1d(
+        corrected.astype(np.float32),
+        npt,
+        unit=pyFAI.units.TTH_DEG,
+        radial_range=[rmin, rmax],
+        mask=mask,
+        correctSolidAngle=False,
+        error_model=None,
+    )
     x, y = np.asarray(res.radial), np.asarray(res.intensity)
-    for lo, hi in (interp_ranges or []):
+    for lo, hi in interp_ranges or []:
         y = interpolate_gap(x, y, lo, hi)
-    np.savetxt(out_path, np.column_stack([x, y]),
-               header="2theta(deg) Intensity_2Dcorr", comments="", fmt="%.6f")
+    np.savetxt(
+        out_path,
+        np.column_stack([x, y]),
+        header="2theta(deg) Intensity_2Dcorr",
+        comments="",
+        fmt="%.6f",
+    )
 
 
-def process_run(sample_paths: Sequence[PathLike], ref: Reference,
-                out_dir: PathLike, mask=None, ai=None,
-                xy_dir: Optional[PathLike] = None, write_nxs=True,
-                npt=2000, rmin=1.0, rmax=30.0, suffix="_2Dcorr",
-                interp_ranges=None, progress=None, skip_existing=False,
-                stop_flag=None, **kw) -> list:
+def process_run(
+    sample_paths: Sequence[PathLike],
+    ref: Reference,
+    out_dir: PathLike,
+    mask=None,
+    ai=None,
+    xy_dir: PathLike | None = None,
+    write_nxs=True,
+    npt=2000,
+    rmin=1.0,
+    rmax=30.0,
+    suffix="_2Dcorr",
+    interp_ranges=None,
+    progress=None,
+    skip_existing=False,
+    stop_flag=None,
+    **kw,
+) -> list:
     """
     Subtract the reference from every frame in sample_paths.
 
@@ -484,11 +585,19 @@ def process_run(sample_paths: Sequence[PathLike], ref: Reference,
                 if write_nxs:
                     write_corrected_nxs(p, dst, corr, i, ref, info)
                 if xy_dir and ai is not None:
-                    integrate_to_xy(corr, ai, mask, Path(xy_dir) / f"{stem}{suffix}.xy",
-                                    npt, rmin, rmax, interp_ranges)
+                    integrate_to_xy(
+                        corr,
+                        ai,
+                        mask,
+                        Path(xy_dir) / f"{stem}{suffix}.xy",
+                        npt,
+                        rmin,
+                        rmax,
+                        interp_ranges,
+                    )
                 rows.append(dict(order=order, file=p.name, frame=i, **info))
-        except Exception as e:                      # one bad file must not stop a run
-            errors.append(dict(file=p.name, error=f"{type(e).__name__}: {e}"))
+        except Exception as e:  # one bad file must not stop a run
+            errors.append({"file": p.name, "error": f"{type(e).__name__}: {e}"})
         if progress:
             progress(order + 1, total, p.name)
 
@@ -502,5 +611,5 @@ def process_run(sample_paths: Sequence[PathLike], ref: Reference,
             w = csv.DictWriter(fh, fieldnames=["file", "error"])
             w.writeheader()
             w.writerows(errors)
-    process_run.last_errors = errors
+    process_run.last_errors = errors  # pyright: ignore[reportFunctionMemberAccess]
     return rows

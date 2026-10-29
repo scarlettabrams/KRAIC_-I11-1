@@ -31,9 +31,12 @@ import numpy as np, pyFAI
 import fep2d_v3 as fm
 from fep2d_inline import InlineSubtractor
 
-sub = InlineSubtractor(fm.load_reference("merged_reference.npz"),
-                       pyFAI.load("calib.poni"), np.load("mask.npy"))
-res = sub.process(frame_2d, name="pixium_146588")   # never raises
+sub = InlineSubtractor(
+    fm.load_reference("merged_reference.npz"),
+    pyFAI.load("calib.poni"),
+    np.load("mask.npy"),
+)
+res = sub.process(frame_2d, name="pixium_146588")  # never raises
 res.ok, res.flags, res.scale, res.corrected
 ```
 
@@ -47,3 +50,33 @@ python fep2d_inline.py --ref merged_reference.npz --poni calib.poni --mask mask.
 ## Status
 
 Tested on recorded I11 frames (AP39, carbamazepine); output matches the offline app pixel for pixel on 4 real frames. About 4.2 s per frame including writing, on 2 CPU cores. Not yet run on a live beamline feed. Peak memory and concurrent use are not yet measured or tested.
+
+
+## Installation
+
+To install this project (on linux or Mac) run:
+
+```bash
+git clone https://github.com/scarlettabrams/KRAIC_I11_1.git
+
+cd KRAIC_I11_1
+
+pip install .[dev]
+
+```
+
+## Code quality + VSCode
+
+There have been a load of tools (that work in VSCode) to hopefully improve code quality, and therefore prevent any issues during runtime.
+
+You must have docker installed on your machine.
+
+In order to enter this development environment, open this code in VSCode and a little pop-up should show up asking you to re-open in dev container
+
+Alternatively you can either press Command + Shift + P and rebuild or re-open in dev container
+
+When you open a terminal in VSCode there will now be a tab at the bottom "Problems", if there are any issues with your code, this Problems tab will show you what needs fixing
+
+Having robots nit-pick your code is annoying, but believe me it makes sure things run properly and prevent issues during runtime.
+
+Ideally we would write unit tests too - but this is experimental code, so we'll live without

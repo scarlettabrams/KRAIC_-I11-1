@@ -2,25 +2,12 @@ import os
 import time
 from datetime import datetime
 
+import cv2
 from communication.software_communication import PyConnection
 from helper.helper import (
     list_dict,
     load_json,
     update_json,
-)
-from imaging.lets_move import (
-    calculate_test_video_duration,
-    record_both_cameras,
-    repeats,
-    wait_for_live_trigger,
-)
-from imaging.trigger import (
-    capture_trigger_data,
-    input_pair_time,
-    input_trigger_threshold,
-    load_trigger_settings,
-    plot_trigger_calibration,
-    save_trigger_settings,
 )
 from individual_equipment_control_menu.equipment.cam_vision import (
     configure_continuous_acquisition,
@@ -28,10 +15,20 @@ from individual_equipment_control_menu.equipment.cam_vision import (
     release_camera,
 )
 
-try:
-    import cv2
-except ImportError:
-    cv2 = None
+from KRAIC_I11_1.camera_triggering_speed_tracking.trigger_imaging.lets_move import (
+    calculate_test_video_duration,
+    record_both_cameras,
+    repeats,
+    wait_for_live_trigger,
+)
+from KRAIC_I11_1.camera_triggering_speed_tracking.trigger_imaging.trigger import (
+    capture_trigger_data,
+    input_pair_time,
+    input_trigger_threshold,
+    load_trigger_settings,
+    plot_trigger_calibration,
+    save_trigger_settings,
+)
 
 try:
     import PySpin

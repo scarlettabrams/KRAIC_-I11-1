@@ -13,7 +13,7 @@ classifiers = [
 ]
 description = "A repository for useful python data analysis tools for the X-ray powder diffraction beamlines at Diamond Light Source"
 dependencies = [
-    "numpy>=1.24",
+    "numpy",
     "opencv-python>=4.8",
     "helper",
     "h5py",
@@ -28,6 +28,7 @@ dependencies = [
     "stomp.py",
     "click",
     "httpx",
+    "pyspin",
 
 ] # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
@@ -146,6 +147,7 @@ lint.select = [
     "I",   # isort - https://docs.astral.sh/ruff/rules/#isort-i
     "UP",  # pyupgrade - https://docs.astral.sh/ruff/rules/#pyupgrade-up
     "SLF", # self - https://docs.astral.sh/ruff/settings/#lintflake8-self
+    "INP", # flake8-no-pep420 (missing __init__.py) - https://docs.astral.sh/ruff/rules/#flake8-no-pep420-inp
 ]
 lint.ignore = [
     "N999", # invalid-module-name - package name KRAIC_I11_1 is intentionally uppercase

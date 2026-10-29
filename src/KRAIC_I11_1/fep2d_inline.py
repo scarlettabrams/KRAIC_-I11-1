@@ -53,13 +53,14 @@ import csv
 import os
 import stat
 import time
-from dataclasses import dataclass, field
 from pathlib import Path
 
-import fep2d_pipeline as fp
-import fep2d_v3 as fm
 import numpy as np
-from fep2d_pipeline import InputError, Settings
+from pydantic import BaseModel, Field
+
+import KRAIC_I11_1.fep2d_pipeline as fp
+import KRAIC_I11_1.fep2d_v3 as fm
+from KRAIC_I11_1.fep2d_pipeline import InputError, Settings
 
 DIAG_FIELDS = [
     "order",
@@ -73,13 +74,12 @@ DIAG_FIELDS = [
 ]
 
 
-@dataclass
-class SubResult:
+class SubResult(BaseModel):
     name: str
     ok: bool
-    flags: list = field(default_factory=list)
+    flags: list = Field(default_factory=list)
     corrected: np.ndarray | None = None
-    info: dict = field(default_factory=dict)
+    info: dict = Field(default_factory=dict)
     scale: float = float("nan")
     fit_frac: float = float("nan")
     seconds: float = 0.0

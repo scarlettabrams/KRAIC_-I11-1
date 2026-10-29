@@ -2,6 +2,7 @@ import os
 import time
 
 import matplotlib.pyplot as plt
+import PySpin
 from helper.helper import (
     load_json,
     update_json,
@@ -12,11 +13,6 @@ from KRAIC_I11_1.camera_triggering_speed_tracking.trigger_imaging.imaging import
     get_camera,
     release_camera,
 )
-
-try:
-    import PySpin
-except ImportError:
-    PySpin = None
 
 _flir_system = None
 _flir_cam_list = None

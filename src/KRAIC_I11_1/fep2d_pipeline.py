@@ -32,8 +32,9 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-import fep2d_v3 as fm
 import numpy as np
+
+import KRAIC_I11_1.fep2d_v3 as fm
 
 PIPELINE_VERSION = "fep2d_pipeline v4.0 (V2 maths via fep2d_v3 unchanged)"
 

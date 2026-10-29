@@ -436,7 +436,7 @@ class CameraSource:
         try:
             if not self.cap.isOpened():
                 raise OSError("Cannot open configured camera.")
-            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*c["fourcc"]))
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter.fourcc(*c["fourcc"]))
             for prop, key in [
                 (cv2.CAP_PROP_FRAME_WIDTH, "width_px"),
                 (cv2.CAP_PROP_FRAME_HEIGHT, "height_px"),
@@ -1232,7 +1232,7 @@ def replay_video(
                     if render:
                         writer = cv2.VideoWriter(
                             str(out / "tracking_review.mp4"),
-                            cv2.VideoWriter_fourcc(*"avc1"),
+                            cv2.VideoWriter.fourcc(*"avc1"),
                             30,
                             (1440, 900),
                         )

@@ -178,7 +178,7 @@ def video_camera_worker(
 
         height, width = first_frame.shape[:2]
 
-        fourcc = cv2.VideoWriter_fourcc(*"XVID")
+        fourcc = cv2.VideoWriter.fourcc(*"XVID")
 
         writer = cv2.VideoWriter(
             filename,

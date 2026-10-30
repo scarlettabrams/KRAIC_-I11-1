@@ -43,12 +43,17 @@ from __future__ import annotations
 import csv
 import datetime
 import shutil
-from collections.abc import Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import h5py
 import numpy as np
+from numpy.typing import ArrayLike
+
+if TYPE_CHECKING:
+    from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 
 PathLike = str | Path
 
@@ -72,7 +77,7 @@ def _detector_path(f: h5py.File) -> str:
             return p
     found: dict[str, int] = {}
 
-    def visit(name, obj):
+    def visit(name: str, obj: object) -> None:
         if isinstance(obj, h5py.Dataset) and obj.ndim >= 2:
             found[name] = int(np.prod(obj.shape[-2:]))
 
@@ -89,7 +94,7 @@ def _detector_dataset(f: h5py.File) -> h5py.Dataset:
     return ds
 
 
-def iter_frames(paths: Sequence[PathLike]):
+def iter_frames(paths: Sequence[PathLike]) -> Iterator[tuple[str, int, np.ndarray]]:
     """Yield (path, frame_index, 2D float32 array); handles 2D or 3D datasets."""
     for p in paths:
         with h5py.File(p, "r") as f:
@@ -101,7 +106,9 @@ def iter_frames(paths: Sequence[PathLike]):
                     yield str(p), i, ds[i].astype(np.float32)
 
 
-def find_frames(folder: PathLike, exts=(".nxs",), recursive: bool = False) -> list:
+def find_frames(
+    folder: PathLike, exts: Sequence[str] = (".nxs",), recursive: bool = False
+) -> list[str]:
     """Sorted list of frame files in a folder. Default is .nxs only, because each
     .nxs links to its own pixium_<n>.hdf and listing both would double count."""
     folder = Path(folder)
@@ -118,7 +125,7 @@ def n_frames_in_file(path: PathLike) -> int:
         return 1 if ds.ndim == 2 else int(ds.shape[0])
 
 
-def _valid(mask: np.ndarray | None, shape) -> np.ndarray:
+def _valid(mask: np.ndarray | None, shape: tuple[int, ...]) -> np.ndarray:
     """Boolean array, True = usable pixel. pyFAI convention: mask True = bad."""
     if mask is None:
         return np.ones(shape, bool)
@@ -148,8 +155,13 @@ class Reference:
 
 
 def screen_frames(
-    paths, mask=None, min_total_frac=0.3, z_total=5.0, min_corr=0.97, progress=None
-):
+    paths: Sequence[PathLike],
+    mask: np.ndarray | None = None,
+    min_total_frac: float = 0.3,
+    z_total: float = 5.0,
+    min_corr: float = 0.97,
+    progress: Callable[[str, int, int], None] | None = None,
+) -> tuple[list[tuple[str, int]], list[tuple[str, int, str]]]:
     """
     Pass 1: cheap screen. Returns (keep_list, reject_list).
     Reject if total counts are far below the median (shutter closed), are a
@@ -188,11 +200,11 @@ def screen_frames(
 
 def build_reference(
     paths: Sequence[PathLike],
-    mask=None,
-    label="reference",
-    screen=True,
-    progress=None,
-    **screen_kw,
+    mask: np.ndarray | None = None,
+    label: str = "reference",
+    screen: bool = True,
+    progress: Callable[[str, int, int], None] | None = None,
+    **screen_kw: Any,
 ) -> Reference:
     """Streaming mean + variance (Welford) so 100 frames never sit in RAM.
     progress(stage, done, total) is called after every frame if given."""
@@ -260,16 +272,16 @@ def load_reference(path: PathLike) -> Reference:
 # Scale + subtraction
 # ----------------------------------------------------------------------------
 def fit_scale(
-    frame,
-    ref_mean,
-    mask=None,
-    n_iter=6,
-    clip=3.0,
-    r_range: tuple | None = None,
-    fit_offset=False,
-    centre: tuple | None = None,
+    frame: np.ndarray,
+    ref_mean: np.ndarray,
+    mask: np.ndarray | None = None,
+    n_iter: int = 6,
+    clip: float = 3.0,
+    r_range: tuple[float, float] | None = None,
+    fit_offset: bool = False,
+    centre: tuple[float, float] | None = None,
     fit_region: np.ndarray | None = None,
-):
+) -> tuple[float, float, float]:
     """
     Robust least-squares scale s (and optional offset) so frame ~ s*ref + c.
     Iteratively rejects pixels with large POSITIVE residuals (Bragg spots)
@@ -309,20 +321,20 @@ def fit_scale(
     return float(s), float(c), float(use.mean())
 
 
-def beam_centre_px(ai) -> tuple:
+def beam_centre_px(ai: AzimuthalIntegrator) -> tuple[float, float]:
     """(row, col) beam centre in pixels from a pyFAI AzimuthalIntegrator."""
     f2d = ai.getFit2D()
     return float(f2d["centerY"]), float(f2d["centerX"])
 
 
 def subtract_frame(
-    frame,
+    frame: np.ndarray,
     ref: Reference,
-    mask=None,
+    mask: np.ndarray | None = None,
     scale: float | None = None,
-    clip_negative=False,
-    **fit_kw,
-):
+    clip_negative: bool = False,
+    **fit_kw: Any,
+) -> tuple[np.ndarray, dict[str, float]]:
     s, c, frac_used = (
         (scale, 0.0, 1.0)
         if scale is not None
@@ -348,7 +360,11 @@ def subtract_frame(
 # ----------------------------------------------------------------------------
 # Helpers added after first real-data trial
 # ----------------------------------------------------------------------------
-def tth_annulus_mask(ai, shape, ranges_deg) -> np.ndarray:
+def tth_annulus_mask(
+    ai: AzimuthalIntegrator,
+    shape: tuple[int, ...],
+    ranges_deg: Sequence[tuple[float, float]],
+) -> np.ndarray:
     """
     Boolean mask (True = bad, pyFAI convention) covering one or more 2theta
     ranges in degrees, e.g. [(5.45, 6.0)] for the strong FEP reflection.
@@ -366,13 +382,16 @@ def tth_annulus_mask(ai, shape, ranges_deg) -> np.ndarray:
     return m
 
 
-def tth_region(ai, shape, rng_deg) -> np.ndarray:
+def tth_region(
+    ai: AzimuthalIntegrator, shape: tuple[int, ...], rng_deg: tuple[float, float]
+) -> np.ndarray:
     """Boolean array, True INSIDE a single 2theta range (lo, hi) in degrees.
     Use as fit_region= to restrict the scale fit, like the app's Scaling region."""
-    return tth_annulus_mask(ai, shape, [tuple(rng_deg)])
+    lo, hi = rng_deg
+    return tth_annulus_mask(ai, shape, [(lo, hi)])
 
 
-def interpolate_gap(x, y, lo, hi):
+def interpolate_gap(x: np.ndarray, y: ArrayLike, lo: float, hi: float) -> np.ndarray:
     """Straight-line fill across [lo, hi] using the edge values. Same logic as
     mask_region(method='interpolate') in app_ssa_V4, so masked 2theta ranges
     give a continuous pattern before baselining."""
@@ -395,7 +414,12 @@ class RingMap:
     shape: tuple
 
 
-def build_ring_map(ai, shape, mask=None, nbins=1500) -> RingMap:
+def build_ring_map(
+    ai: AzimuthalIntegrator,
+    shape: tuple[int, ...],
+    mask: np.ndarray | None = None,
+    nbins: int = 1500,
+) -> RingMap:
     """Precompute once per geometry/mask; reuse for every frame."""
     try:
         tth = np.degrees(ai.center_array(shape, unit="2th_rad"))
@@ -413,7 +437,7 @@ def build_ring_map(ai, shape, mask=None, nbins=1500) -> RingMap:
     )
 
 
-def ring_median_subtract(frame, rm: RingMap) -> np.ndarray:
+def ring_median_subtract(frame: np.ndarray, rm: RingMap) -> np.ndarray:
     """
     Subtract the median of each radial ring (a robust 'azimuthal background').
     Anything smooth around a ring (FEP, solvent halo, leftover reference
@@ -456,7 +480,12 @@ def leave_one_out_reference(ref: Reference, frame: np.ndarray) -> Reference:
 # Output
 # ----------------------------------------------------------------------------
 def write_corrected_nxs(
-    src: PathLike, dst: PathLike, corrected, frame_index, ref: Reference, info: dict
+    src: PathLike,
+    dst: PathLike,
+    corrected: np.ndarray,
+    frame_index: int,
+    ref: Reference,
+    info: dict[str, float],
 ) -> None:
     """
     Copy the source file, swap in the corrected 2D frame (single frame).
@@ -496,8 +525,15 @@ def write_corrected_nxs(
 
 
 def integrate_to_xy(
-    corrected, ai, mask, out_path, npt=2000, rmin=1.0, rmax=30.0, interp_ranges=None
-):
+    corrected: np.ndarray,
+    ai: AzimuthalIntegrator,
+    mask: np.ndarray | None,
+    out_path: PathLike,
+    npt: int = 2000,
+    rmin: float = 1.0,
+    rmax: float = 30.0,
+    interp_ranges: Sequence[tuple[float, float]] | None = None,
+) -> None:
     """Same settings as the Streamlit app (no solid-angle correction).
     interp_ranges=[(lo, hi), ...] fills those 2theta ranges by straight line
     (use the same ranges as any annulus mask, e.g. [(5.40, 6.00)])."""
@@ -528,20 +564,20 @@ def process_run(
     sample_paths: Sequence[PathLike],
     ref: Reference,
     out_dir: PathLike,
-    mask=None,
-    ai=None,
+    mask: np.ndarray | None = None,
+    ai: AzimuthalIntegrator | None = None,
     xy_dir: PathLike | None = None,
-    write_nxs=True,
-    npt=2000,
-    rmin=1.0,
-    rmax=30.0,
-    suffix="_2Dcorr",
-    interp_ranges=None,
-    progress=None,
-    skip_existing=False,
-    stop_flag=None,
-    **kw,
-) -> list:
+    write_nxs: bool = True,
+    npt: int = 2000,
+    rmin: float = 1.0,
+    rmax: float = 30.0,
+    suffix: str = "_2Dcorr",
+    interp_ranges: Sequence[tuple[float, float]] | None = None,
+    progress: Callable[[int, int, str], None] | None = None,
+    skip_existing: bool = False,
+    stop_flag: Callable[[], bool] | None = None,
+    **kw: Any,
+) -> list[dict[str, Any]]:
     """
     Subtract the reference from every frame in sample_paths.
 

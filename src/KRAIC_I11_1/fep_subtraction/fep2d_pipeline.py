@@ -31,10 +31,15 @@ import re
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from numpy.typing import ArrayLike
 
 import KRAIC_I11_1.fep_subtraction.fep2d_v3 as fm
+
+if TYPE_CHECKING:
+    from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 
 PIPELINE_VERSION = "fep2d_pipeline v4.0 (V2 maths via fep2d_v3 unchanged)"
 
@@ -76,7 +81,7 @@ class Settings:
     noise_factor: float = 2.0  # far-angle noise this many times the running median
     min_history: int = 10  # frames needed before drift / noise flags can fire
 
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, Any]:
         d = asdict(self)
         d["extra_mask"] = [list(r) for r in self.extra_mask]
         d["scale_bounds"] = list(self.scale_bounds)
@@ -90,7 +95,7 @@ class InputError(ValueError):
 # ----------------------------------------------------------------------------
 # small helpers
 # ----------------------------------------------------------------------------
-def parse_ranges(text: str):
+def parse_ranges(text: str) -> list[tuple[float, float]]:
     """'5.30-6.10, 8-8.5' -> [(5.3, 6.1), (8.0, 8.5)]. Raises ValueError."""
     out = []
     for part in str(text).replace(";", ",").split(","):
@@ -107,11 +112,16 @@ def parse_ranges(text: str):
     return out
 
 
-def fmt_ranges(ranges) -> str:
+def fmt_ranges(ranges: Sequence[tuple[float, float]]) -> str:
     return ", ".join(f"{a:.2f}-{b:.2f}" for a, b in ranges)
 
 
-def total_mask(det_mask, ai, shape, ranges) -> np.ndarray:
+def total_mask(
+    det_mask: np.ndarray | None,
+    ai: AzimuthalIntegrator | None,
+    shape: tuple[int, ...],
+    ranges: Sequence[tuple[float, float]],
+) -> np.ndarray:
     """Detector mask OR the extra 2-theta annulus ranges. True = bad pixel."""
     total = (
         np.zeros(shape, bool)
@@ -129,7 +139,14 @@ def total_mask(det_mask, ai, shape, ranges) -> np.ndarray:
     return total
 
 
-def integrate(frame, ai, mask, npt=2000, rmin=1.0, rmax=30.0):
+def integrate(
+    frame: ArrayLike,
+    ai: AzimuthalIntegrator,
+    mask: np.ndarray | None,
+    npt: int = 2000,
+    rmin: float = 1.0,
+    rmax: float = 30.0,
+) -> tuple[np.ndarray, np.ndarray]:
     """Azimuthal integration, raw summed counts: no solid-angle correction, no error
     model."""
     import pyFAI
@@ -147,7 +164,9 @@ def integrate(frame, ai, mask, npt=2000, rmin=1.0, rmax=30.0):
     return np.asarray(res.radial, float), np.asarray(res.intensity, float)
 
 
-def fill_gaps(x, y, ranges):
+def fill_gaps(
+    x: np.ndarray, y: ArrayLike, ranges: Sequence[tuple[float, float]] | None
+) -> np.ndarray:
     """Straight-line fill across each masked 2-theta range (same logic as the 1D
     app)."""
     y = np.asarray(y, float)
@@ -156,7 +175,9 @@ def fill_gaps(x, y, ranges):
     return y
 
 
-def zero_ranges(x, y, ranges):
+def zero_ranges(
+    x: ArrayLike, y: ArrayLike, ranges: Sequence[tuple[float, float]] | None
+) -> np.ndarray:
     """Set the masked 2-theta window(s) to exactly 0 (call AFTER baselining). The
     straight-line bridge is only there so the baseline has something to follow; any
     small bump left inside the window (about 0.4 counts seen at 6.05-6.10 deg on AP39
@@ -168,7 +189,9 @@ def zero_ranges(x, y, ranges):
     return y
 
 
-def baseline_mor(x, y, half_window=4):
+def baseline_mor(
+    x: ArrayLike, y: ArrayLike, half_window: int = 4
+) -> tuple[np.ndarray, np.ndarray]:
     """MOR baseline (pybaselines). Returns (corrected, baseline)."""
     from pybaselines import Baseline
 
@@ -176,7 +199,7 @@ def baseline_mor(x, y, half_window=4):
     return np.asarray(y, float) - base, base
 
 
-def far_noise(x, y, lo=22.5, hi=30.0) -> float:
+def far_noise(x: np.ndarray, y: ArrayLike, lo: float = 22.5, hi: float = 30.0) -> float:
     """Robust noise (MAD) of a pattern in a far-angle region with no strong peaks."""
     m = (x >= lo) & (x <= hi)
     if m.sum() < 5:
@@ -185,7 +208,9 @@ def far_noise(x, y, lo=22.5, hi=30.0) -> float:
     return float(1.4826 * np.median(np.abs(v - np.median(v))))
 
 
-def merge_patterns(xs: Sequence, ys: Sequence):
+def merge_patterns(
+    xs: Sequence[ArrayLike], ys: Sequence[ArrayLike]
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Mean and standard deviation of several patterns on the first pattern's grid."""
     if not len(ys):
         raise ValueError("nothing to merge")
@@ -199,18 +224,22 @@ def merge_patterns(xs: Sequence, ys: Sequence):
     return grid, stack.mean(axis=0), stack.std(axis=0)
 
 
-def save_xy(path, x, y, header="2theta(deg) Intensity"):
+def save_xy(
+    path: fm.PathLike, x: ArrayLike, y: ArrayLike, header: str = "2theta(deg) Intensity"
+) -> None:
     np.savetxt(path, np.column_stack([x, y]), header=header, comments="", fmt="%.6f")
 
 
-def load_xy(path):
+def load_xy(path: fm.PathLike) -> tuple[np.ndarray, np.ndarray]:
     d = np.loadtxt(path, skiprows=1, comments="#")
     if d.ndim < 2 or d.shape[1] < 2:
         raise ValueError(f"{path} is not a two-column .xy file")
     return d[:, 0], d[:, 1]
 
 
-def fit_scale_fast(f, g, n_iter=6, clip=3.0):
+def fit_scale_fast(
+    f: np.ndarray, g: np.ndarray, n_iter: int = 6, clip: float = 3.0
+) -> tuple[float, float]:
     """Same robust scale fit as fep2d_v3.fit_scale (no offset), on already-selected
     pixels. f = frame pixels, g = reference pixels (float64, same order).
     Returns (scale, fraction kept)."""
@@ -224,7 +253,9 @@ def fit_scale_fast(f, g, n_iter=6, clip=3.0):
     return float(s), float(use.mean())
 
 
-def check_reference(ref: fm.Reference, min_frames=10, warn_frames=46) -> list:
+def check_reference(
+    ref: fm.Reference, min_frames: int = 10, warn_frames: int = 46
+) -> list[str]:
     """Checks on a reference. Raises InputError for a reference that cannot be used;
     returns a list of warning strings for one that can but is weak."""
     warns = []
@@ -262,7 +293,7 @@ def check_reference(ref: fm.Reference, min_frames=10, warn_frames=46) -> list:
     return warns
 
 
-def write_manifest(path, **items):
+def write_manifest(path: fm.PathLike, **items: Any) -> None:
     items.setdefault("pipeline", PIPELINE_VERSION)
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as fh:

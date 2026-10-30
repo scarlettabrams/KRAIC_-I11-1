@@ -47,13 +47,14 @@ stops the run.
 
 from __future__ import annotations
 
-import argparse
 import collections
 import csv
 import os
 import stat
 import time
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
@@ -61,6 +62,9 @@ from pydantic import BaseModel, ConfigDict, Field
 import KRAIC_I11_1.fep_subtraction.fep2d_pipeline as fp
 import KRAIC_I11_1.fep_subtraction.fep2d_v3 as fm
 from KRAIC_I11_1.fep_subtraction.fep2d_pipeline import InputError, Settings
+
+if TYPE_CHECKING:
+    from pyFAI.integrator.azimuthal import AzimuthalIntegrator
 
 DIAG_FIELDS = [
     "order",
@@ -87,7 +91,7 @@ class SubResult(BaseModel):
     seconds: float = 0.0
     written: str = ""
 
-    def summary(self) -> dict:
+    def summary(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "ok": self.ok,
@@ -103,10 +107,10 @@ class InlineSubtractor:
     def __init__(
         self,
         ref: fm.Reference,
-        ai=None,
-        det_mask=None,
+        ai: AzimuthalIntegrator | None = None,
+        det_mask: np.ndarray | None = None,
         settings: Settings | None = None,
-    ):
+    ) -> None:
         self.s = settings or Settings()
         self.ref = ref
         self.shape = tuple(ref.mean.shape)
@@ -117,7 +121,7 @@ class InlineSubtractor:
         if int((~self.mask).sum()) < 1000:
             raise InputError("fewer than 1000 usable pixels after masking")
         self._ref_total = float(ref.mean[~self.mask].sum())
-        self._scales = collections.deque(maxlen=200)
+        self._scales: collections.deque[float] = collections.deque(maxlen=200)
         self._order = 0
 
     # ------------------------------------------------------------------
@@ -151,7 +155,7 @@ class InlineSubtractor:
         r.seconds = time.time() - t0
         return r
 
-    def _soft_flags(self, r: SubResult):
+    def _soft_flags(self, r: SubResult) -> None:
         s = self.s
         lo, hi = s.scale_bounds
         if not (lo <= r.scale <= hi):
@@ -166,7 +170,9 @@ class InlineSubtractor:
         self._scales.append(r.scale)
 
     # ------------------------------------------------------------------
-    def process_file(self, path, out_dir, suffix: str = "") -> list[SubResult]:
+    def process_file(
+        self, path: fm.PathLike, out_dir: fm.PathLike, suffix: str = ""
+    ) -> list[SubResult]:
         """Read a raw .hdf/.nxs (2D or 3D), subtract, and write each corrected frame to
         out_dir under the same name as tab 2 of the app does. Returns one SubResult per
         frame."""
@@ -178,7 +184,7 @@ class InlineSubtractor:
             for _, i, fr in fm.iter_frames([path]):
                 stem = path.stem + (f"_f{i:04d}" if nfr > 1 else "")
                 r = self.process(fr, stem + path.suffix)
-                if r.ok:
+                if r.ok and r.corrected is not None:
                     try:
                         dst = out_dir / f"{stem}{suffix}{path.suffix}"
                         tmp = (
@@ -207,7 +213,9 @@ class InlineSubtractor:
             )
         return results
 
-    def _append_diag(self, out_dir: Path, fname: str, frame_idx: int, info: dict):
+    def _append_diag(
+        self, out_dir: Path, fname: str, frame_idx: int, info: dict[str, float]
+    ) -> None:
         p = out_dir / "subtraction_diagnostics.csv"
         new = not p.exists()
         with open(p, "a", newline="") as fh:
@@ -221,7 +229,7 @@ class InlineSubtractor:
 # ----------------------------------------------------------------------------
 # logging and watching
 # ----------------------------------------------------------------------------
-def append_log(res: SubResult, log_path):
+def append_log(res: SubResult, log_path: fm.PathLike) -> None:
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     new = not log_path.exists()
@@ -232,7 +240,7 @@ def append_log(res: SubResult, log_path):
         w.writerow(res.summary())
 
 
-def _readable(p) -> bool:
+def _readable(p: fm.PathLike) -> bool:
     """True once the file opens as HDF5 (a file still being written usually does
     not)."""
     try:
@@ -245,8 +253,13 @@ def _readable(p) -> bool:
 
 
 def watch_folder(
-    folder, exts=(".hdf",), poll=1.0, settle=0.5, stop=lambda: False, give_up_s=60.0
-):
+    folder: fm.PathLike,
+    exts: Sequence[str] = (".hdf",),
+    poll: float = 1.0,
+    settle: float = 0.5,
+    stop: Callable[[], bool] = lambda: False,
+    give_up_s: float = 60.0,
+) -> Iterator[Path]:
     """Yield each NEW frame file once. A file is passed on when its size has stopped
     changing AND it opens as HDF5. If it still cannot be opened after give_up_s seconds
     it is passed on anyway, so it is logged as a failed frame instead of being silently
@@ -267,67 +280,3 @@ def watch_folder(
                     seen.add(p)
                     yield p
         time.sleep(poll)
-
-
-def main(argv=None):
-    ap = argparse.ArgumentParser(
-        description="Inline 2D FEP subtraction (folder watcher)"
-    )
-    ap.add_argument(
-        "--ref", required=True, help="merged reference .npz made in the offline app"
-    )
-    ap.add_argument("--poni", required=True)
-    ap.add_argument(
-        "--mask", default=None, help="detector mask .npy (True = bad pixel)"
-    )
-    ap.add_argument("--watch", required=True, help="folder to watch for new raw frames")
-    ap.add_argument("--out", required=True, help="output folder")
-    ap.add_argument("--run", default="run")
-    ap.add_argument(
-        "--extra-mask",
-        default=fp.fmt_ranges(fp.DEFAULT_EXTRA_MASK),
-        help="extra 2-theta mask, e.g. 5.30-6.10 (use '' for none)",
-    )
-    ap.add_argument("--ext", default=".hdf")
-    a = ap.parse_args(argv)
-    import pyFAI
-
-    s = Settings(extra_mask=fp.parse_ranges(a.extra_mask))
-    sub = InlineSubtractor(
-        fm.load_reference(a.ref),
-        pyFAI.load(a.poni),
-        np.load(a.mask) if a.mask else None,
-        s,
-    )
-    for w in sub.warnings:
-        print("WARNING:", w)
-    run_dir = Path(a.out) / a.run
-    out = run_dir / "01_corrected_2D"
-    fp.write_manifest(
-        run_dir / "inline_manifest.json",
-        reference=a.ref,
-        reference_label=sub.ref.label,
-        reference_n_frames=sub.ref.n_used,
-        poni=a.poni,
-        mask=a.mask,
-        watch=a.watch,
-        settings=s.as_dict(),
-        reference_warnings=sub.warnings,
-    )
-    print(f"watching {a.watch}  ->  {out}   (Ctrl+C to stop)")
-    try:
-        for p in watch_folder(a.watch, (a.ext,)):
-            for res in sub.process_file(p, out):
-                append_log(res, run_dir / "inline_log.csv")
-                print(
-                    res.name,
-                    "OK" if res.ok else "FAILED",
-                    f"{res.seconds:.2f}s",
-                    *res.flags,
-                )
-    except KeyboardInterrupt:
-        print("stopped")
-
-
-if __name__ == "__main__":
-    main()

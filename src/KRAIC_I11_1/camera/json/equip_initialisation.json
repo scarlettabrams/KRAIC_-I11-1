@@ -1,0 +1,67 @@
+{
+    "SF-10_Peristaltic_1": {
+        "operational": false,
+        "COM_Assigned": true,
+        "software_confirmation": false
+    },
+    "SF-10_Peristaltic_2": {
+        "operational": false,
+        "COM_Assigned": true,
+        "software_confirmation": false
+    },
+    "SF-10_Peristaltic_3": {
+        "operational": false,
+        "COM_Assigned": false,
+        "software_confirmation": false
+    },
+    "KDS_Syringe_Pump": {
+        "operational": false,
+        "COM_Assigned": false,
+        "software_confirmation": false
+    },
+    "FLIR_Camera_Plane": {
+        "operational": false,
+        "COM_Assigned": true,
+        "software_confirmation": false
+    },
+    "FLIR_Camera_Top": {
+        "operational": false,
+        "COM_Assigned": true,
+        "software_confirmation": false
+    },
+    "Bronkhorst_MFC": {
+        "operational": false,
+        "COM_Assigned": true,
+        "software_confirmation": false
+    },
+    "Focus_and_Lights": {
+        "operational": false,
+        "COM_Assigned": true,
+        "software_confirmation": false
+    },
+    "KRAIC-Analysis": {
+        "operational": false,
+        "COM_Assigned": true,
+        "software_confirmation": false
+    },
+    "Gear_Pump": {
+        "operational": false,
+        "COM_Assigned": true,
+        "software_confirmation": false
+    },
+    "Heating_PXU": {
+        "operational": false,
+        "COM_Assigned": false,
+        "software_confirmation": false
+    },
+    "Excelog_6": {
+        "operational": false,
+        "COM_Assigned": false,
+        "software_confirmation": false
+    },
+    "JulaboFC600": {
+        "operational": false,
+        "COM_Assigned": true,
+        "software_confirmation": false
+    }
+}

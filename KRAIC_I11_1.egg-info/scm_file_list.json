@@ -1,0 +1,28 @@
+{
+  "files": [
+    ".DS_Store",
+    ".devcontainer/devcontainer.json",
+    ".gitignore",
+    ".pre-commit-config.yaml",
+    ".vscode/extensions.json",
+    ".vscode/launch.json",
+    ".vscode/settings.json",
+    ".vscode/tasks.json",
+    "Dockerfile",
+    "README.md",
+    "camera_triggering_speed_tracking/.DS_Store",
+    "camera_triggering_speed_tracking/flowspeedmonitor_v2/README.md",
+    "camera_triggering_speed_tracking/flowspeedmonitor_v2/flowspeedmonitor_v2.py",
+    "camera_triggering_speed_tracking/flowspeedmonitor_v2/flowspeedmonitor_v2_config.json",
+    "camera_triggering_speed_tracking/flowspeedmonitor_v2/requirements.txt",
+    "camera_triggering_speed_tracking/trigger_imaging/imaging.py",
+    "camera_triggering_speed_tracking/trigger_imaging/lets_move.py",
+    "camera_triggering_speed_tracking/trigger_imaging/trigger.py",
+    "docs/Engineering_Handover_2D_FEP_Subtraction.pptx",
+    "docs/README_inline.md",
+    "fep2d_inline.py",
+    "fep2d_pipeline.py",
+    "fep2d_v3.py",
+    "requirements.txt"
+  ]
+}

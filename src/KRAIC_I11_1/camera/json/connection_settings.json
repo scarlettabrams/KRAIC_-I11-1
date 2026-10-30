@@ -1,0 +1,327 @@
+{
+    "CONNECTION_SETTINGS": {
+        "SF-10_Peristaltic_1": {
+            "serial_number": "B0049QJW",
+            "port": "/dev/ttyUSB0",
+            "comm_method": "serial",
+            "baudrate": 9600,
+            "bytesize": "EIGHTBITS",
+            "parity": "PARITY_NONE",
+            "stopbits": "STOPBITS_ONE",
+            "startup_delay": 2,
+            "timeout": 1,
+            "xonxoff": false
+        },
+        "SF-10_Peristaltic_2": {
+            "serial_number": "B0049QJO",
+            "port": "/dev/ttyUSB1",
+            "comm_method": "serial",
+            "baudrate": 9600,
+            "bytesize": "EIGHTBITS",
+            "parity": "PARITY_NONE",
+            "stopbits": "STOPBITS_ONE",
+            "startup_delay": 2,
+            "timeout": 1,
+            "xonxoff": false
+        },
+        "SF-10_Peristaltic_3": {
+            "serial_number": "XXXXXXX",
+            "port": false,
+            "comm_method": "serial",
+            "baudrate": 9600,
+            "bytesize": "EIGHTBITS",
+            "parity": "PARITY_NONE",
+            "stopbits": "STOPBITS_ONE",
+            "startup_delay": 2,
+            "timeout": 1,
+            "xonxoff": false
+        },
+        "KDS_Syringe_Pump": {
+            "serial_number": "B0043Y8L",
+            "port": false,
+            "comm_method": "serial",
+            "baudrate": 9600,
+            "bytesize": "EIGHTBITS",
+            "parity": "PARITY_NONE",
+            "stopbits": "STOPBITS_ONE",
+            "startup_delay": 2,
+            "timeout": 1,
+            "xonxoff": false
+        },
+        "Bronkhorst_MFC": {
+            "serial_number": "A107M70X",
+            "port": "/dev/ttyUSB2",
+            "comm_method": "serial",
+            "baudrate": 38400,
+            "bytesize": "EIGHTBITS",
+            "parity": "PARITY_NONE",
+            "stopbits": "STOPBITS_ONE",
+            "startup_delay": 2,
+            "timeout": 1,
+            "xonxoff": false
+        },
+        "Focus_and_Lights": {
+            "serial_number": "F2CD04855154513747202020FF162B0F",
+            "port": "/dev/ttyACM2",
+            "comm_method": "serial",
+            "baudrate": 115200,
+            "bytesize": "EIGHTBITS",
+            "parity": "PARITY_NONE",
+            "stopbits": "STOPBITS_ONE",
+            "startup_delay": 2,
+            "timeout": 1,
+            "xonxoff": false
+        },
+        "KRAIC-Analysis": {
+            "serial_number": "397034B451544E4751202020FF0B222F",
+            "port": "/dev/ttyACM0",
+            "comm_method": "serial",
+            "baudrate": 115200,
+            "bytesize": "EIGHTBITS",
+            "parity": "PARITY_NONE",
+            "stopbits": "STOPBITS_ONE",
+            "startup_delay": 2,
+            "timeout": 1,
+            "xonxoff": false
+        },
+        "FLIR_Camera_Top": {
+            "serial_number": "23133595"
+        },
+        "FLIR_Camera_Plane": {
+            "serial_number": "23133593"
+        },
+        "Gear_Pump": {
+            "serial_number": "DB982F3B5154524C4A202020FF0C384B",
+            "port": "/dev/ttyACM1",
+            "comm_method": "serial",
+            "baudrate": 9600,
+            "bytesize": "EIGHTBITS",
+            "parity": "PARITY_NONE",
+            "stopbits": "STOPBITS_ONE",
+            "startup_delay": 2,
+            "timeout": 1,
+            "xonxoff": false
+        },
+        "Heating_PXU": {
+            "serial_number": "BG01CZOX",
+            "port": false,
+            "comm_method": "modbus",
+            "baudrate": 38400,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 1,
+            "startup_delay": 2,
+            "timeout": 1,
+            "xonxoff": false,
+            "slave": 247
+        },
+        "Excelog_6": {
+            "serial_number": "0103-01243",
+            "port": false,
+            "comm_method": "modbus",
+            "baudrate": 57600,
+            "bytesize": 8,
+            "parity": "N",
+            "stopbits": 2,
+            "startup_delay": 2,
+            "timeout": 1,
+            "xonxoff": false,
+            "slave": 1
+        },
+        "JulaboFC600": {
+            "serial_number": "FTE2H157",
+            "port": "/dev/ttyUSB3",
+            "comm_method": "serial",
+            "baudrate": 4800,
+            "bytesize": "EIGHTBITS",
+            "parity": "PARITY_NONE",
+            "stopbits": "STOPBITS_ONE",
+            "startup_delay": 3,
+            "timeout": 1,
+            "xonxoff": true
+        }
+    },
+    "COMMANDS": {
+        "SF-10_Peristaltic_1": {
+            "1": "REMOTEEN",
+            "2": "START",
+            "3": "STOP",
+            "4": "SETFLOW ",
+            "5": "GA"
+        },
+        "SF-10_Peristaltic_2": {
+            "1": "REMOTEEN",
+            "2": "START",
+            "3": "STOP",
+            "4": "SETFLOW ",
+            "5": "GA"
+        },
+        "SF-10_Peristaltic_3": {
+            "1": "REMOTEEN",
+            "2": "START",
+            "3": "STOP",
+            "4": "SETFLOW ",
+            "5": "GA"
+        },
+        "KDS_Syringe_Pump": {
+            "1": "status",
+            "2": {
+                "1": {
+                    "cycle": "cycle 0",
+                    "start_command": "irun",
+                    "flow_command": "irate 0.5 ml/min"
+                },
+                "2": {
+                    "cycle": "cycle 0",
+                    "start_command": "wrun",
+                    "flow_command": "wrate 0.5 ml/min"
+                }
+            },
+            "3": {
+                "Mode": "cycle 0",
+                "Start": "irun",
+                "Rate": "irate 0.5 ml/min"
+            },
+            "4": "stop"
+        },
+        "Bronkhorst_MFC": {
+            "1": "06800401210121",
+            "2": "06800401210120",
+            "3": "06800401210121",
+            "4": "0680010121",
+            "5": "06800101210000"
+        },
+        "Focus_and_Lights": {
+            "1": "Q",
+            "2": "EN 1",
+            "3": "EN 0",
+            "4": "STOP",
+            "5": "MOVE",
+            "6": "GOTO",
+            "7": "LED",
+            "8": "MOVE"
+        },
+        "KRAIC-Analysis": {
+            "1": "Q",
+            "2": "EN 1",
+            "3": "EN 0",
+            "4": "STOP",
+            "5": "SPEED",
+            "6": "ACC",
+            "7": "MOVE",
+            "8": "GOTO",
+            "9": "MOVE"
+        },
+        "Gear_Pump": {
+            "1": "none",
+            "2": {
+                "left_up": [
+                    "3,8",
+                    "3,0"
+                ],
+                "left_down": [
+                    "4,8",
+                    "4,0"
+                ],
+                "right_up": [
+                    "1,8",
+                    "1,0"
+                ],
+                "right_down": [
+                    "2,8",
+                    "2,0"
+                ]
+            }
+        },
+        "Heating_PXU": {
+            "1": [
+                0,
+                1
+            ],
+            "2": [
+                0,
+                1
+            ],
+            "3": {
+                "Read": [
+                    1,
+                    1
+                ],
+                "Write": [
+                    1,
+                    600
+                ]
+            },
+            "4": {
+                "1": {
+                    "P": [
+                        10,
+                        1
+                    ],
+                    "I": [
+                        11,
+                        1
+                    ],
+                    "D": [
+                        12,
+                        1
+                    ]
+                },
+                "2": [
+                    15,
+                    30
+                ],
+                "3": [
+                    10,
+                    3
+                ]
+            }
+        },
+        "Excelog_6": {
+            "1": [
+                4206,
+                1
+            ],
+            "2": [
+                4096,
+                8
+            ],
+            "3": [
+                4096,
+                2
+            ],
+            "4": [
+                4098,
+                2
+            ],
+            "5": [
+                4100,
+                2
+            ],
+            "6": [
+                4102,
+                2
+            ],
+            "7": [
+                4096,
+                2
+            ]
+        },
+        "JulaboFC600": {
+            "1": "status",
+            "2": "out_mode_05 1",
+            "3": "out_mode_05 0",
+            "4": "out_sp_00 ",
+            "5": {
+                "Actual Pump Condition": "in_mode_05",
+                "Working Temperature": "in_sp_00",
+                "Feed Temperature": "in_pv_00",
+                "Return Temperature": "in_pv_03",
+                "Heater Capacity": "in_pv_02",
+                "Control Paramter Xp": "in_par_06",
+                "Control Paramter Tn": "in_par_07",
+                "Control Paramter Tv": "in_par_08"
+            }
+        }
+    }
+}

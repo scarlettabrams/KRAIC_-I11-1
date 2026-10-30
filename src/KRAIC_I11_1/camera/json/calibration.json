@@ -1,0 +1,36 @@
+{
+    "CALIBRATION_STATUS": {
+        "15_6_2026_11_43_Calibration_Folder": {
+            "ROI_Identification_Image": true,
+            "ROI_Image_Processed": true,
+            "Coordinates": {
+                "x": 60,
+                "y_top": 14,
+                "y_bottom": 77
+            },
+            "Orientation": "downward",
+            "Preparation": true,
+            "Calibration": {
+                "Status": true,
+                "Temperature_commands": {},
+                "Flow_commands": [
+                    9.5,
+                    19.0,
+                    28.5,
+                    38.0,
+                    47.5,
+                    57.0,
+                    66.5,
+                    76.0,
+                    85.5,
+                    95.0,
+                    104.5
+                ],
+                "Current_flow": 85.5,
+                "Experiment": 159
+            },
+            "Calibration_Images_Processed": true,
+            "Completed": true
+        }
+    }
+}

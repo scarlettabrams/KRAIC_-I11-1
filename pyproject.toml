@@ -28,6 +28,9 @@ dependencies = [
     "click",
     "httpx",
     "blueapi",
+    "pyserial>=3.5",
+    "openpyxl>=3.1.5",
+    "pymodbus>=3.16.1",
 ] # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
 license.file = "LICENSE"

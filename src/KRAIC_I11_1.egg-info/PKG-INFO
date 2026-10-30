@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: KRAIC_I11_1
-Version: 0.1.dev10+g831390893.d20261030
+Version: 0.1.dev12+gee7cabffa.d20261030
 Summary: A repository for useful python data analysis tools for the X-ray powder diffraction beamlines at Diamond Light Source
 Author-email: Scarlett Abrams <scarlett.abrams@diamond.ac.uk>
 Project-URL: GitHub, https://github.com/scarlettabrams/KRAIC_I11_1
@@ -26,6 +26,9 @@ Requires-Dist: stomp.py
 Requires-Dist: click
 Requires-Dist: httpx
 Requires-Dist: blueapi
+Requires-Dist: pyserial>=3.5
+Requires-Dist: openpyxl>=3.1.5
+Requires-Dist: pymodbus>=3.16.1
 
 # FEP 2D frame subtraction (I11 PXRD)
 

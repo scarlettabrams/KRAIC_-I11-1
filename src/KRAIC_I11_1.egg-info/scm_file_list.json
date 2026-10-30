@@ -31,6 +31,13 @@
     "src/KRAIC_I11_1/__init__.py",
     "src/KRAIC_I11_1/__main__.py",
     "src/KRAIC_I11_1/_version.py",
+    "src/KRAIC_I11_1/bluesky_interaction/__init__.py",
+    "src/KRAIC_I11_1/bluesky_interaction/blueapi_trigger.py",
+    "src/KRAIC_I11_1/fep_subtraction/__init__.py",
+    "src/KRAIC_I11_1/fep_subtraction/fep2d_inline.py",
+    "src/KRAIC_I11_1/fep_subtraction/fep2d_pipeline.py",
+    "src/KRAIC_I11_1/fep_subtraction/fep2d_v3.py",
+    "src/KRAIC_I11_1/fep_subtraction/run_subtraction.py",
     "uv.lock"
   ]
 }

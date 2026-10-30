@@ -34,7 +34,6 @@ def run_subtraction_on_file(
     drift_sigma: float = 5.0,
     noise_factor: float = 2.0,
     min_history: int = 10,
-    log_name: str = "inline_log.csv",
 ):
     """Build the Settings from the arguments and subtract every frame in a single
     raw .hdf/.nxs file, writing the corrected frames to
@@ -46,6 +45,8 @@ def run_subtraction_on_file(
 
     if extra_mask is None:
         extra_mask = list(fp.DEFAULT_EXTRA_MASK)
+
+    log_name: str = "inline_log.csv"
 
     settings = Settings(
         extra_mask=extra_mask,
@@ -166,7 +167,6 @@ def run_watcher(
     noise_factor: float = 2.0,
     min_history: int = 10,
     ext: str = ".hdf",
-    log_name: str = "inline_log.csv",
 ) -> None:
     """Build the Settings from the arguments and run the watcher.
     extra_mask=None uses fp.DEFAULT_EXTRA_MASK; pass [] for no extra mask."""
@@ -198,5 +198,4 @@ def run_watcher(
         mask_npy_path=mask_npy_path,
         settings=settings,
         ext=ext,
-        log_name=log_name,
     )

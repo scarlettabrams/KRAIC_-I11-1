@@ -31,18 +31,6 @@
     "src/KRAIC_I11_1/__init__.py",
     "src/KRAIC_I11_1/__main__.py",
     "src/KRAIC_I11_1/_version.py",
-    "src/KRAIC_I11_1/camera_triggering_speed_tracking/__init__.py",
-    "src/KRAIC_I11_1/camera_triggering_speed_tracking/flowspeedmonitor_v2/README.md",
-    "src/KRAIC_I11_1/camera_triggering_speed_tracking/flowspeedmonitor_v2/__init__.py",
-    "src/KRAIC_I11_1/camera_triggering_speed_tracking/flowspeedmonitor_v2/flowspeedmonitor_v2.py",
-    "src/KRAIC_I11_1/camera_triggering_speed_tracking/flowspeedmonitor_v2/flowspeedmonitor_v2_config.json",
-    "src/KRAIC_I11_1/camera_triggering_speed_tracking/trigger_imaging/__init__.py",
-    "src/KRAIC_I11_1/camera_triggering_speed_tracking/trigger_imaging/imaging.py",
-    "src/KRAIC_I11_1/camera_triggering_speed_tracking/trigger_imaging/lets_move.py",
-    "src/KRAIC_I11_1/camera_triggering_speed_tracking/trigger_imaging/trigger.py",
-    "src/KRAIC_I11_1/fep2d_inline.py",
-    "src/KRAIC_I11_1/fep2d_pipeline.py",
-    "src/KRAIC_I11_1/fep2d_v3.py",
     "uv.lock"
   ]
 }

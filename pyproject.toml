@@ -27,8 +27,7 @@ dependencies = [
     "stomp.py",
     "click",
     "httpx",
-    "pyspin",
-
+    "blueapi",
 ] # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
 license.file = "LICENSE"

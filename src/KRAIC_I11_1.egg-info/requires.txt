@@ -12,4 +12,4 @@ toml
 stomp.py
 click
 httpx
-pyspin
+blueapi

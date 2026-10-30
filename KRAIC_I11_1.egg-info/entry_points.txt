@@ -1,2 +1,0 @@
-[console_scripts]
-xrpd-toolbox = KRAIC_I11_1.__main__:main

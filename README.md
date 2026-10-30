@@ -85,7 +85,7 @@ Ideally we would write unit tests too - but this is experimental code, so we'll 
 ### Running this at end of Scan:
 
 ```bash
-curl -X POST https://i11-analysise.diamond.ac.uk/analyse -H "Content-Type: application/json" -d '{
+curl -X POST https://i11-analysis.diamond.ac.uk/analyse -H "Content-Type: application/json" -d '{
   "analysis_name": "run_subtraction_on_file",
   "inputs": {
     "file_path": "<path/to/raw.nxs>",

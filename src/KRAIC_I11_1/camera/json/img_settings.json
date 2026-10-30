@@ -1,0 +1,20 @@
+{
+    "IMAGING_SETTINGS": {
+        "16_7_2026_16_2_DLM_Test_Imaging_Folder": {
+            "trigger_threshold": 185.0,
+            "pair_time": 0.7,
+            "run_speed": 0.10250000000000001,
+            "return_speed": 1,
+            "repeats": 1,
+            "delay": 0.1
+        },
+        "20_7_2026_13_46_CBZ_img_1_Imaging_Folder": {
+            "trigger_threshold": 175.0,
+            "pair_time": 0.85,
+            "run_speed": 0.09916666666666667,
+            "return_speed": 1,
+            "repeats": 10,
+            "delay": 0.2
+        }
+    }
+}

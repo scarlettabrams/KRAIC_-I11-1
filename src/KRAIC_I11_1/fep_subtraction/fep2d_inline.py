@@ -56,7 +56,7 @@ import time
 from pathlib import Path
 
 import numpy as np
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 import KRAIC_I11_1.fep_subtraction.fep2d_pipeline as fp
 import KRAIC_I11_1.fep_subtraction.fep2d_v3 as fm
@@ -75,6 +75,8 @@ DIAG_FIELDS = [
 
 
 class SubResult(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     name: str
     ok: bool
     flags: list = Field(default_factory=list)

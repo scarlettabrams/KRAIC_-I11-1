@@ -80,3 +80,34 @@ When you open a terminal in VSCode there will now be a tab at the bottom "Proble
 Having robots nit-pick your code is annoying, but believe me it makes sure things run properly and prevent issues during runtime.
 
 Ideally we would write unit tests too - but this is experimental code, so we'll live without
+
+
+### Running this at end of Scan:
+
+```bash
+curl -X POST https://i11-analysise.diamond.ac.uk/analyse -H "Content-Type: application/json" -d '{
+  "analysis_name": "run_subtraction_on_file",
+  "inputs": {
+    "file_path": "<path/to/raw.nxs>",
+    "outpath": "<path/to/processed/output_dir>",
+    "run_name": "<run_name>",
+    "merged_reference_npz_path": "<path/to/merged_reference.npz>",
+    "poni_path": "<path/to/calibration.poni>",
+    "mask_npy_path": "<path/to/mask.npy>",
+    "extra_mask": null,
+    "npt": 2000,
+    "rmin": 1.0,
+    "rmax": 30.0,
+    "half_window": 4,
+    "zero_masked": true,
+    "fit_stride": 1,
+    "scale_bounds": [0.3, 3.0],
+    "min_total_frac": 0.30,
+    "min_fit_frac": 0.50,
+    "drift_sigma": 5.0,
+    "noise_factor": 2.0,
+    "min_history": 10,
+    "log_name": "inline_log.csv"
+  }
+}'
+```bash

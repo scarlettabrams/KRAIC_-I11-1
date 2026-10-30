@@ -75,6 +75,8 @@ def run_subtraction_on_file(
     run_dir = Path(outpath) / run_name
     out = run_dir / "01_corrected_2D"
 
+    out.mkdir(exist_ok=True)
+
     results = sub.process_file(file_path, out)
     for result in results:
         append_log(result, run_dir / log_name)

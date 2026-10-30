@@ -29,12 +29,12 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import ArrayLike
+from pydantic import BaseModel, Field
 
 import KRAIC_I11_1.fep_subtraction.fep2d_v3 as fm
 
@@ -49,10 +49,9 @@ DEFAULT_EXTRA_MASK = [(5.30, 6.10)]
 # ----------------------------------------------------------------------------
 # settings shared by both pipelines
 # ----------------------------------------------------------------------------
-@dataclass
-class Settings:
-    extra_mask: list = field(
-        default_factory=lambda: [tuple(r) for r in DEFAULT_EXTRA_MASK]
+class Settings(BaseModel):
+    extra_mask: list[tuple[float, float]] = Field(
+        default_factory=lambda: list(DEFAULT_EXTRA_MASK)
     )
     npt: int = 2000
     rmin: float = 1.0
@@ -72,7 +71,7 @@ class Settings:
     # noise. Use only if the frame rate demands it.
     fit_stride: int = 1
     # inline quality checks
-    scale_bounds: tuple = (0.3, 3.0)
+    scale_bounds: tuple[float, float] = (0.3, 3.0)
     min_total_frac: float = (
         0.30  # frame total below this x reference total = dark / shutter
     )
@@ -82,10 +81,8 @@ class Settings:
     min_history: int = 10  # frames needed before drift / noise flags can fire
 
     def as_dict(self) -> dict[str, Any]:
-        d = asdict(self)
-        d["extra_mask"] = [list(r) for r in self.extra_mask]
-        d["scale_bounds"] = list(self.scale_bounds)
-        return d
+        # JSON mode turns the tuples into lists, so the manifest stays plain JSON
+        return self.model_dump(mode="json")
 
 
 class InputError(ValueError):

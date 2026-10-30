@@ -34,7 +34,7 @@ from pathlib import Path
 
 import numpy as np
 
-import KRAIC_I11_1.fep2d_v3 as fm
+import KRAIC_I11_1.fep_subtraction.fep2d_v3 as fm
 
 PIPELINE_VERSION = "fep2d_pipeline v4.0 (V2 maths via fep2d_v3 unchanged)"
 

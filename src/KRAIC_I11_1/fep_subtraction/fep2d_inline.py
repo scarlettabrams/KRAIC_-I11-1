@@ -58,9 +58,9 @@ from pathlib import Path
 import numpy as np
 from pydantic import BaseModel, Field
 
-import KRAIC_I11_1.fep2d_pipeline as fp
-import KRAIC_I11_1.fep2d_v3 as fm
-from KRAIC_I11_1.fep2d_pipeline import InputError, Settings
+import KRAIC_I11_1.fep_subtraction.fep2d_pipeline as fp
+import KRAIC_I11_1.fep_subtraction.fep2d_v3 as fm
+from KRAIC_I11_1.fep_subtraction.fep2d_pipeline import InputError, Settings
 
 DIAG_FIELDS = [
     "order",
@@ -164,7 +164,7 @@ class InlineSubtractor:
         self._scales.append(r.scale)
 
     # ------------------------------------------------------------------
-    def process_file(self, path, out_dir, suffix: str = "") -> list:
+    def process_file(self, path, out_dir, suffix: str = "") -> list[SubResult]:
         """Read a raw .hdf/.nxs (2D or 3D), subtract, and write each corrected frame to
         out_dir under the same name as tab 2 of the app does. Returns one SubResult per
         frame."""
